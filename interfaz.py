@@ -1,5 +1,6 @@
 import tkinter as tk
 import threading
+import time
 from clases import SimuladorSupermercado
 from generador_ensayos import EnsayoSimulador
 
@@ -22,7 +23,10 @@ class InterfazSimulador:
         self.caja_width = 280
         self.caja_height = 250  # Cajas más pequeñas
         self.persona_radius = 8
-        self.colores_caja = ['#4CAF50', '#2196F3', '#FF9800']
+        self.colores_caja = ['#2196F3', '#2196F3', '#9C27B0']  # Azul, Azul, Morado
+        
+        # Multiplicador de tiempo para acelerar la animación visual
+        self.acelerador_tiempo = 15  # La simulación va 15x más rápida visualmente
         
         # Frame superior para controles
         self.frame_controles = tk.Frame(root, bg='#f0f0f0')
@@ -56,7 +60,7 @@ class InterfazSimulador:
         
         self.btn_ensayos = tk.Button(
             self.frame_controles,
-            text="Generar 1000 Ensayos Excel",
+            text="Generar 2000 Ensayos",
             command=self.generar_ensayos,
             bg='#9C27B0',
             fg='white',
@@ -66,6 +70,33 @@ class InterfazSimulador:
             cursor='hand2'
         )
         self.btn_ensayos.pack(side=tk.LEFT, padx=10)
+        
+        # Control de velocidad
+        tk.Label(
+            self.frame_controles,
+            text="Velocidad:",
+            font=('Arial', 10, 'bold'),
+            bg='#f0f0f0'
+        ).pack(side=tk.LEFT, padx=(20, 5))
+        
+        self.velocidad_var = tk.StringVar(value="15")
+        self.combo_velocidad = tk.Spinbox(
+            self.frame_controles,
+            from_=1,
+            to=50,
+            textvariable=self.velocidad_var,
+            width=5,
+            font=('Arial', 10),
+            command=self.actualizar_velocidad
+        )
+        self.combo_velocidad.pack(side=tk.LEFT, padx=5)
+        
+        tk.Label(
+            self.frame_controles,
+            text="x más rápido",
+            font=('Arial', 10),
+            bg='#f0f0f0'
+        ).pack(side=tk.LEFT, padx=5)
         
         # Canvas para dibujar
         self.canvas = tk.Canvas(
@@ -84,15 +115,38 @@ class InterfazSimulador:
         
         self.label_info = tk.Label(
             self.frame_info,
-            text="🟡 Esperando | 🔴 Atendiendo | 🟢 Cliente Cuántico (está en las 3 filas simultáneamente)",
+            text="🟡 Esperando | 🔴 Atendiendo | 🟢 Cliente Objetivo (está en las 3 filas simultáneamente)",
             font=('Arial', 10),
             bg='#f0f0f0',
             fg='#333'
         )
         self.label_info.pack()
         
+        # Label para mostrar tiempo transcurrido
+        self.label_tiempo = tk.Label(
+            self.frame_info,
+            text="",  # Vacío inicialmente, se muestra solo al finalizar
+            font=('Arial', 11, 'bold'),
+            bg='#f0f0f0',
+            fg='#FF5722'
+        )
+        self.label_tiempo.pack(pady=5)
+        
         self.simulacion_en_curso = False
+        self.tiempo_inicio = None
+        self.actualizar_velocidad()  # Aplicar velocidad inicial
         self.dibujar_cajas_iniciales()
+    
+    def actualizar_velocidad(self):
+        """Actualiza el acelerador de tiempo según el valor del spinbox"""
+        try:
+            self.acelerador_tiempo = int(self.velocidad_var.get())
+            if self.acelerador_tiempo < 1:
+                self.acelerador_tiempo = 1
+                self.velocidad_var.set("1")
+        except ValueError:
+            self.acelerador_tiempo = 15
+            self.velocidad_var.set("15")
     
     def dibujar_cajas_iniciales(self):
         """Dibuja las cajas vacías al inicio"""
@@ -193,8 +247,8 @@ class InterfazSimulador:
                 py = start_fila_y + idx * persona_spacing
                 
                 # Color según el tipo de persona
-                if persona.es_cuantica:
-                    # Cliente CUÁNTICO en VERDE (está en las 3 filas simultáneamente)
+                if persona.es_objetivo:
+                    # Cliente OBJETIVO en VERDE (está en las 3 filas simultáneamente)
                     color_persona = '#00FF00'  # Verde brillante
                     outline_color = '#00AA00'
                     outline_width = 3
@@ -226,7 +280,7 @@ class InterfazSimulador:
                     py,
                     text=str(persona.articulos),
                     font=('Arial', 8, 'bold'),
-                    fill='#333' if not persona.es_cuantica else '#000'
+                    fill='#333' if not persona.es_objetivo else '#000'
                 )
     
     def actualizar_visualizacion(self):
@@ -245,8 +299,10 @@ class InterfazSimulador:
         
         self.label_info.config(text=info_texto)
         
-        # Verificar si el cliente cuántico fue atendido (finaliza la simulación)
-        if self.simulador.cuantico_atendido:
+        # NO mostrar tiempo durante la simulación, solo al finalizar
+        
+        # Verificar si el cliente objetivo fue atendido (finaliza la simulación)
+        if self.simulador.objetivo_atendido:
             self.finalizar_simulacion()
         else:
             self.root.after(500, self.actualizar_visualizacion)
@@ -258,6 +314,15 @@ class InterfazSimulador:
         
         self.simulacion_en_curso = True
         self.btn_iniciar.config(state='disabled')
+        
+        # Actualizar velocidad antes de iniciar
+        self.actualizar_velocidad()
+        
+        # Iniciar contador de tiempo
+        self.tiempo_inicio = time.time()
+        
+        # Pasar el acelerador de tiempo al simulador
+        self.simulador.acelerador_tiempo = self.acelerador_tiempo
         
         # Generar personas
         self.simulador.iniciar_cajas()
@@ -278,29 +343,34 @@ class InterfazSimulador:
         self.simulacion_en_curso = False
         self.btn_iniciar.config(state='normal')
         
-        caja_cuantico = self.simulador.caja_ganadora_cuantico
-        articulos_cuantico = self.simulador.cliente_cuantico.articulos if self.simulador.cliente_cuantico else 0
+        # Calcular tiempo REAL (multiplicando el tiempo de animación por el acelerador)
+        tiempo_animacion = time.time() - self.tiempo_inicio if self.tiempo_inicio else 0
+        tiempo_real = tiempo_animacion * self.acelerador_tiempo
         
-        resultado_texto = f"✓ ¡Cliente Cuántico atendido! Simulación finalizada.\n"
-        resultado_texto += f"🟢 Cliente Cuántico ({articulos_cuantico} artículos) atendido PRIMERO en: 🏆 CAJA {caja_cuantico} 🏆\n"
+        caja_objetivo = self.simulador.caja_ganadora_objetivo
+        articulos_objetivo = self.simulador.cliente_objetivo.articulos if self.simulador.cliente_objetivo else 0
+        
+        resultado_texto = f"✓ ¡Cliente Objetivo atendido! Simulación finalizada.\n"
+        resultado_texto += f"🟢 Cliente Objetivo ({articulos_objetivo} artículos) atendido PRIMERO en: 🏆 CAJA {caja_objetivo} 🏆\n"
         resultado_texto += f"Las otras cajas se detuvieron automáticamente."
         
         self.label_info.config(text=resultado_texto, fg='#4CAF50')
+        self.label_tiempo.config(text=f"⏱️ Tiempo en ser atendido: {tiempo_real:.1f}s (tiempo real calculado)", fg='#4CAF50')
         
-        # Marcar la caja que atendió primero al cliente cuántico
+        # Marcar la caja que atendió primero al cliente objetivo
         self.dibujar_estado()
         spacing = 20
         start_x = (self.canvas_width - (3 * self.caja_width + 2 * spacing)) // 2
         
-        if caja_cuantico:
-            idx_cuantico = caja_cuantico - 1
-            x_cuantico = start_x + idx_cuantico * (self.caja_width + spacing)
+        if caja_objetivo:
+            idx_objetivo = caja_objetivo - 1
+            x_objetivo = start_x + idx_objetivo * (self.caja_width + spacing)
             y = 50
             
             self.canvas.create_text(
-                x_cuantico + self.caja_width // 2,
+                x_objetivo + self.caja_width // 2,
                 y + self.caja_height - 40,
-                text="🏆 GANADORA 🏆\nAtendió primero\nal cliente cuántico",
+                text="🏆 GANADORA 🏆\nAtendió primero\nal cliente objetivo",
                 font=('Arial', 13, 'bold'),
                 fill='#00FF00'
             )
@@ -308,22 +378,24 @@ class InterfazSimulador:
     def reiniciar(self):
         """Reinicia la simulación"""
         self.simulacion_en_curso = False
+        self.tiempo_inicio = None
         self.btn_iniciar.config(state='normal')
         self.simulador = SimuladorSupermercado(num_cajas=3)
         self.dibujar_cajas_iniciales()
         self.label_info.config(
-            text="🟡 Esperando | 🔴 Atendiendo | 🟢 Cliente Cuántico (está en las 3 filas simultáneamente)",
+            text="🟡 Esperando | 🔴 Atendiendo | 🟢 Cliente Objetivo (está en las 3 filas simultáneamente)",
             fg='#333'
         )
+        self.label_tiempo.config(text="", fg='#FF5722')  # Vacío hasta que termine
     
     def generar_ensayos(self):
-        """Genera 1000 ensayos y exporta a Excel"""
+        """Genera 2000 ensayos y exporta a Excel"""
         self.btn_ensayos.config(state='disabled', text="Generando...")
-        self.label_info.config(text="⏳ Generando 1000 ensayos instantáneos...", fg='#FF9800')
+        self.label_info.config(text="⏳ Generando 2000 ensayos instantáneos...", fg='#FF9800')
         
         def ejecutar_ensayos():
             simulador_ensayos = EnsayoSimulador()
-            simulador_ensayos.generar_ensayos(1000)
+            simulador_ensayos.generar_ensayos(2000)
             archivo = simulador_ensayos.exportar_excel()
             
             # Mostrar estadísticas
@@ -331,13 +403,13 @@ class InterfazSimulador:
             ganadores_express = sum(1 for r in simulador_ensayos.resultados if r['tipo_ganador'] == 'Express')
             ganadores_normal = total - ganadores_express
             
-            mensaje = f"✓ 1000 ensayos completados!\n"
-            mensaje += f"Cajas Normales ganaron: {ganadores_normal} ({ganadores_normal/10:.1f}%)\n"
-            mensaje += f"Caja Express ganó: {ganadores_express} ({ganadores_express/10:.1f}%)\n"
+            mensaje = f"✓ 2000 ensayos completados!\n"
+            mensaje += f"Cajas Normales ganaron: {ganadores_normal} ({ganadores_normal/20:.1f}%)\n"
+            mensaje += f"Caja Express ganó: {ganadores_express} ({ganadores_express/20:.1f}%)\n"
             mensaje += f"Archivo Excel: {archivo}"
             
             self.label_info.config(text=mensaje, fg='#4CAF50')
-            self.btn_ensayos.config(state='normal', text="Generar 1000 Ensayos Excel")
+            self.btn_ensayos.config(state='normal', text="Generar 2000 Ensayos Excel")
         
         # Ejecutar en un hilo separado para no bloquear la interfaz
         threading.Thread(target=ejecutar_ensayos, daemon=True).start()

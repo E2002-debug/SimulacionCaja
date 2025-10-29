@@ -4,10 +4,10 @@ import threading
 
 
 class Persona:
-    def __init__(self, articulos, es_cuantica=False):
+    def __init__(self, articulos, es_objetivo=False):
         self.articulos = articulos
         self.tiempo_cobro = random.randint(15, 30)
-        self.es_cuantica = es_cuantica  # Cliente cuántico presente en todas las filas
+        self.es_objetivo = es_objetivo  # Cliente objetivo presente en todas las filas
     
     def tiempo_atendido(self, t_escaneo):
         return self.articulos * t_escaneo + self.tiempo_cobro
@@ -22,15 +22,15 @@ class Caja:
         self.tiempo_total = 0
         self.cantidad_personas = 0
         self.atendiendo = False  # Indica si está atendiendo a alguien
-        self.atendio_cuantico = False  # Indica si esta caja atendió al cliente cuántico
+        self.atendio_objetivo = False  # Indica si esta caja atendió al cliente objetivo
 
     def generar_personas(self):
-        # Caja express: más afluencia (10-16 personas) porque tiene límite de productos
-        # Cajas normales: menos afluencia (3-7 personas) porque pueden tener muchos productos
+        # Caja express: 9-14 clientes antes del objetivo (siempre más que normal)
+        # Cajas normales: 1-9 clientes antes del objetivo
         if self.express:
-            self.cantidad_personas = random.randint(10, 16)
+            self.cantidad_personas = random.randint(9, 14)
         else:
-            self.cantidad_personas = random.randint(3, 7)
+            self.cantidad_personas = random.randint(1, 9)
         
         self.personas = []
 
@@ -69,20 +69,22 @@ class Caja:
             tiempo_persona = persona.tiempo_atendido(self.t_escaneo)
             self.tiempo_total += tiempo_persona
             
-            time.sleep(tiempo_persona / 15)  # velocidad simulación
+            # Usar el acelerador de tiempo del simulador para la animación
+            acelerador = simulador.acelerador_tiempo if simulador and hasattr(simulador, 'acelerador_tiempo') else 15
+            time.sleep(tiempo_persona / acelerador)
             self.personas.pop(0)  # Eliminar la persona atendida
             self.atendiendo = False
             
-            # DESPUÉS de atender, verificar si era el cliente cuántico
-            if persona.es_cuantica and simulador and not self.atendio_cuantico:
-                self.atendio_cuantico = True
-                if simulador.caja_ganadora_cuantico is None:
-                    simulador.caja_ganadora_cuantico = self.id_caja
-                    # DESPUÉS de atender al cliente cuántico, detener todas las cajas
-                    simulador.cuantico_atendido = True
+            # DESPUÉS de atender, verificar si era el cliente objetivo
+            if persona.es_objetivo and simulador and not self.atendio_objetivo:
+                self.atendio_objetivo = True
+                if simulador.caja_ganadora_objetivo is None:
+                    simulador.caja_ganadora_objetivo = self.id_caja
+                    # DESPUÉS de atender al cliente objetivo, detener todas las cajas
+                    simulador.objetivo_atendido = True
             
-            # Si el cliente cuántico ya fue atendido en alguna caja, detener esta caja
-            if simulador and simulador.cuantico_atendido:
+            # Si el cliente objetivo ya fue atendido en alguna caja, detener esta caja
+            if simulador and simulador.objetivo_atendido:
                 break
 
         return self.tiempo_total
@@ -95,6 +97,7 @@ class SimuladorSupermercado:
     def __init__(self, num_cajas=2):
         self.num_cajas = num_cajas
         self.cajas = []
+        self.acelerador_tiempo = 15  # Por defecto 15x (se puede cambiar desde interfaz)
         # Tiempos de escaneo aleatorios según tipo de cajero (incluye empaquetado):
         # Caja 1 (Normal con EXPERTO): random 2.5-4s
         # Caja 2 (Normal con PRINCIPIANTE): random 4.5-7s
@@ -106,9 +109,9 @@ class SimuladorSupermercado:
         ]
         self.tiempo_total_caja = []
         self.mejor_caja = None
-        self.cliente_cuantico = None  # El cliente que está en las 3 filas
-        self.caja_ganadora_cuantico = None  # Qué caja atendió primero al cliente cuántico
-        self.cuantico_atendido = False  # Flag para detener todas las cajas cuando el cuántico es atendido
+        self.cliente_objetivo = None  # El cliente que está en las 3 filas
+        self.caja_ganadora_objetivo = None  # Qué caja atendió primero al cliente objetivo
+        self.objetivo_atendido = False  # Flag para detener todas las cajas cuando el objetivo es atendido
         self.iniciar_cajas()
 
     def iniciar_cajas(self):
@@ -121,29 +124,29 @@ class SimuladorSupermercado:
     def generar_personas_para_todas(self):
         personas_por_caja = []
         
-        # Crear el cliente cuántico con un número aleatorio de artículos (apto para express)
-        articulos_cuantico = random.randint(3, 8)
-        tiempo_cobro_cuantico = random.randint(15, 30)
+        # Crear el cliente objetivo con un número aleatorio de artículos (apto para express)
+        articulos_objetivo = random.randint(3, 8)
+        tiempo_cobro_objetivo = random.randint(15, 30)
         
         for caja in self.cajas:
             personas = caja.generar_personas()
             
-            # Agregar el cliente cuántico al FINAL de cada fila (última posición)
-            cliente_cuantico = Persona(articulos_cuantico, es_cuantica=True)
-            cliente_cuantico.tiempo_cobro = tiempo_cobro_cuantico  # Mismo tiempo de cobro
-            caja.personas.append(cliente_cuantico)  # Al FINAL de la fila
+            # Agregar el cliente objetivo al FINAL de cada fila (última posición)
+            cliente_objetivo = Persona(articulos_objetivo, es_objetivo=True)
+            cliente_objetivo.tiempo_cobro = tiempo_cobro_objetivo  # Mismo tiempo de cobro
+            caja.personas.append(cliente_objetivo)  # Al FINAL de la fila
             
             personas_por_caja.append(len(caja.personas))
         
-        # Guardar referencia del cliente cuántico
-        self.cliente_cuantico = self.cajas[0].personas[-1]  # Último de la primera caja
+        # Guardar referencia del cliente objetivo
+        self.cliente_objetivo = self.cajas[0].personas[-1]  # Último de la primera caja
         
         return personas_por_caja
 
     def ejecutar_simulacion(self):
         self.tiempo_total_caja = []
-        self.caja_ganadora_cuantico = None  # Resetear
-        self.cuantico_atendido = False  # Resetear
+        self.caja_ganadora_objetivo = None  # Resetear
+        self.objetivo_atendido = False  # Resetear
         hilos = []
         resultados = [None] * len(self.cajas)
 
@@ -168,7 +171,7 @@ class SimuladorSupermercado:
             'tiempos_totales': self.tiempo_total_caja,
             'mejor_caja': self.mejor_caja,
             'personas_por_caja': [caja.cantidad_personas for caja in self.cajas],
-            'caja_ganadora_cuantico': self.caja_ganadora_cuantico
+            'caja_ganadora_objetivo': self.caja_ganadora_objetivo
         }
 
     def calcular_mejor_caja(self):

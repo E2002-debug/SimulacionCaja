@@ -26,8 +26,8 @@ class EnsayoSimulador:
     def __init__(self):
         self.resultados = []
     
-    def generar_cliente_cuantico(self):
-        """Genera un cliente cuántico con artículos aleatorios"""
+    def generar_cliente_objetivo(self):
+        """Genera un cliente objetivo con artículos aleatorios"""
         articulos = random.randint(3, 8)
         tiempo_cobro = random.randint(15, 30)
         return articulos, tiempo_cobro
@@ -35,7 +35,7 @@ class EnsayoSimulador:
     def generar_personas_caja(self, es_express):
         """Genera personas para una caja según su tipo"""
         if es_express:
-            cantidad = random.randint(10, 16)
+            cantidad = random.randint(9, 14)  # Express: 9-14 clientes (siempre más que normal)
             personas = []
             for _ in range(cantidad):
                 if random.random() < 0.8:
@@ -45,7 +45,7 @@ class EnsayoSimulador:
                 tiempo_cobro = random.randint(15, 30)
                 personas.append((articulos, tiempo_cobro))
         else:
-            cantidad = random.randint(3, 7)
+            cantidad = random.randint(1, 9)  # Normal: 1-9 clientes
             personas = []
             for _ in range(cantidad):
                 rand = random.random()
@@ -60,12 +60,12 @@ class EnsayoSimulador:
         
         return personas
     
-    def calcular_tiempo_hasta_cuantico(self, personas, cliente_cuantico, tiempo_escaneo):
-        """Calcula el tiempo total hasta atender al cliente cuántico"""
-        articulos_cuantico, tiempo_cobro_cuantico = cliente_cuantico
+    def calcular_tiempo_hasta_objetivo(self, personas, cliente_objetivo, tiempo_escaneo):
+        """Calcula el tiempo total hasta atender al cliente objetivo"""
+        articulos_objetivo, tiempo_cobro_objetivo = cliente_objetivo
         
-        # Agregar el cliente cuántico al final
-        todas_personas = personas + [(articulos_cuantico, tiempo_cobro_cuantico)]
+        # Agregar el cliente objetivo al final
+        todas_personas = personas + [(articulos_objetivo, tiempo_cobro_objetivo)]
         
         tiempo_total = 0
         for articulos, tiempo_cobro in todas_personas:
@@ -77,9 +77,9 @@ class EnsayoSimulador:
     def ejecutar_ensayo_simple(self, numero_ensayo):
         """Ejecuta un ensayo completo y retorna el resultado"""
         
-        # Generar cliente cuántico (mismo para las 3 cajas)
-        cliente_cuantico = self.generar_cliente_cuantico()
-        articulos_cuantico, tiempo_cobro_cuantico = cliente_cuantico
+        # Generar cliente objetivo (mismo para las 3 cajas)
+        cliente_objetivo = self.generar_cliente_objetivo()
+        articulos_objetivo, tiempo_cobro_objetivo = cliente_objetivo
         
         # Configuración de cajas
         cajas = [
@@ -110,9 +110,9 @@ class EnsayoSimulador:
         tiempos = []
         for caja in cajas:
             personas = self.generar_personas_caja(caja['express'])
-            tiempo = self.calcular_tiempo_hasta_cuantico(
+            tiempo = self.calcular_tiempo_hasta_objetivo(
                 personas, 
-                cliente_cuantico, 
+                cliente_objetivo, 
                 caja['tiempo_escaneo']
             )
             tiempos.append({
@@ -136,7 +136,7 @@ class EnsayoSimulador:
         
         return {
             'ensayo': numero_ensayo,
-            'articulos_cuantico': articulos_cuantico,
+            'articulos_objetivo': articulos_objetivo,
             'caja_ganadora_id': ganadora['caja_id'],
             'tipo_ganador': tipo_ganador,
             'tiempo_ganador': ganadora['tiempo_total'],
@@ -185,7 +185,7 @@ class EnsayoSimulador:
         # Definir encabezados
         encabezados = [
             'Ensayo',
-            'Articulos_Cuantico',
+            'Articulos_Objetivo',
             'Caja_Ganadora_ID',
             'Tipo_Ganador',
             'Tiempo_Ganador',
@@ -212,7 +212,7 @@ class EnsayoSimulador:
         # Escribir datos
         for row_idx, resultado in enumerate(self.resultados, start=2):
             ws.cell(row=row_idx, column=1, value=resultado['ensayo'])
-            ws.cell(row=row_idx, column=2, value=resultado['articulos_cuantico'])
+            ws.cell(row=row_idx, column=2, value=resultado['articulos_objetivo'])
             ws.cell(row=row_idx, column=3, value=resultado['caja_ganadora_id'])
             ws.cell(row=row_idx, column=4, value=resultado['tipo_ganador'])
             ws.cell(row=row_idx, column=5, value=round(resultado['tiempo_ganador'], 3))
@@ -286,8 +286,8 @@ def main():
     
     simulador = EnsayoSimulador()
     
-    # Generar 1000 ensayos
-    simulador.generar_ensayos(1000)
+    # Generar 2000 ensayos
+    simulador.generar_ensayos(2000)
     
     # Mostrar estadísticas
     simulador.mostrar_estadisticas()
