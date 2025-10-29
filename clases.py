@@ -28,9 +28,9 @@ class Caja:
         # Caja express: más afluencia (10-16 personas) porque tiene límite de productos
         # Cajas normales: menos afluencia (3-7 personas) porque pueden tener muchos productos
         if self.express:
-            self.cantidad_personas = random.randint(10, 16)
+            self.cantidad_personas = random.randint(3, 10)
         else:
-            self.cantidad_personas = random.randint(3, 7)
+            self.cantidad_personas = random.randint(5, 14)
         
         self.personas = []
 
@@ -113,9 +113,22 @@ class SimuladorSupermercado:
 
     def iniciar_cajas(self):
         self.cajas = []
+        roles_cajeros = ['Experto', 'Principiante']  # Tipos posibles
+        random.shuffle(roles_cajeros)
+        
         for i in range(self.num_cajas):
+            # Asignar tipo de cajero aleatoriamente
+            rol = random.choice(roles_cajeros)
             express = (i == 2)
-            caja = Caja(i + 1, self.tiempo_escaneo[i], express)
+            
+            # Ajustar el tiempo de escaneo según el tipo de cajero
+            if rol == 'Experto':
+                t_escaneo = random.uniform(2.5, 4.0)
+            else:
+                t_escaneo = random.uniform(4.5, 7.0)
+            
+            caja = Caja(i + 1, t_escaneo, express)
+            caja.cajero = rol  # Guardamos el rol del cajero para mostrarlo luego
             self.cajas.append(caja)
 
     def generar_personas_para_todas(self):

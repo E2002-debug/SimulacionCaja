@@ -95,22 +95,21 @@ class InterfazSimulador:
         self.dibujar_cajas_iniciales()
     
     def dibujar_cajas_iniciales(self):
-        """Dibuja las cajas vacías al inicio"""
+        """Dibuja las cajas vacías al inicio (usando cajeros aleatorios del simulador)"""
         self.canvas.delete("all")
         
         spacing = 20
         start_x = (self.canvas_width - (3 * self.caja_width + 2 * spacing)) // 2
         
-        cajeros = ['EXPERTO', 'PRINCIPIANTE', 'EXPERTO']
-        tipos = ['NORMAL', 'NORMAL', 'EXPRESS']
-        limites = ['(≤50 art.)', '(≤50 art.)', '(≤10 art.)']
-        velocidades = ['3-5s/art.', '6-9s/art.', '3-5s/art.']
-        
-        for i in range(3):
+        for i, caja in enumerate(self.simulador.cajas):
             x = start_x + i * (self.caja_width + spacing)
             y = 50
+
+            tipo_caja = "EXPRESS" if caja.express else "NORMAL"
+            cajero = caja.cajero.upper()
+            limite = "(≤10 art.)" if caja.express else "(≤50 art.)"
+            velocidad = "⚡ 3-5s/art." if caja.cajero == "Experto" else "⚡ 6-9s/art."
             
-            # Dibujar caja
             self.canvas.create_rectangle(
                 x, y, x + self.caja_width, y + self.caja_height,
                 fill=self.colores_caja[i],
@@ -119,45 +118,34 @@ class InterfazSimulador:
                 tags=f'caja_{i}'
             )
             
-            # Título de la caja
             self.canvas.create_text(
-                x + self.caja_width // 2,
-                y + 12,
-                text=f"CAJA {i + 1} - {tipos[i]}",
+                x + self.caja_width // 2, y + 12,
+                text=f"CAJA {i + 1} - {tipo_caja}",
                 font=('Arial', 12, 'bold'),
-                fill='white',
-                tags=f'titulo_caja_{i}'
+                fill='white'
             )
             
-            # Tipo de cajero
             self.canvas.create_text(
-                x + self.caja_width // 2,
-                y + 28,
-                text=f"Cajero {cajeros[i]}",
+                x + self.caja_width // 2, y + 28,
+                text=f"Cajero {cajero}",
                 font=('Arial', 10, 'bold'),
-                fill='white',
-                tags=f'cajero_{i}'
+                fill='white'
             )
             
-            # Velocidad
             self.canvas.create_text(
-                x + self.caja_width // 2,
-                y + 43,
-                text=f"⚡ {velocidades[i]}",
+                x + self.caja_width // 2, y + 43,
+                text=velocidad,
                 font=('Arial', 9),
-                fill='white',
-                tags=f'velocidad_{i}'
+                fill='white'
             )
             
-            # Límite de artículos
             self.canvas.create_text(
-                x + self.caja_width // 2,
-                y + 57,
-                text=limites[i],
+                x + self.caja_width // 2, y + 57,
+                text=limite,
                 font=('Arial', 8),
-                fill='white',
-                tags=f'limite_{i}'
+                fill='white'
             )
+
     
     def dibujar_estado(self):
         """Dibuja el estado actual de las cajas y personas"""
