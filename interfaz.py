@@ -383,7 +383,7 @@ class InterfazSimulador:
         self.simulador = SimuladorSupermercado(num_cajas=3)
         self.dibujar_cajas_iniciales()
         self.label_info.config(
-            text="🟡 Esperando | 🔴 Atendiendo | 🟢 Cliente Objetivo (está en las 3 filas simultáneamente)",
+            text="● Esperando | ● Atendiendo | ● Cliente Objetivo (está en las 3 filas simultáneamente)",
             fg='#333'
         )
         self.label_tiempo.config(text="", fg='#FF5722')  # Vacío hasta que termine
