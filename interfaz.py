@@ -12,26 +12,30 @@ class InterfazSimulador:
         self.root.geometry("1000x800")
         self.root.configure(bg='#f0f0f0')
         
-        # Asegurar que la ventana aparezca al frente
+        # Asegura que la ventana aparezca al frente
         self.root.lift()
         self.root.attributes('-topmost', True)
         self.root.after_idle(self.root.attributes, '-topmost', False)
         
+        # Inicializa el simulador con 3 cajas
         self.simulador = SimuladorSupermercado(num_cajas=3)
+        
+        # Dimensiones y visualización
         self.canvas_width = 950
-        self.canvas_height = 650  # Aumentado para filas verticales largas
+        self.canvas_height = 650
         self.caja_width = 280
-        self.caja_height = 250  # Cajas más pequeñas
+        self.caja_height = 250
         self.persona_radius = 8
         self.colores_caja = ['#2196F3', '#2196F3', '#9C27B0']  # Azul, Azul, Morado
         
-        # Multiplicador de tiempo para acelerar la animación visual
-        self.acelerador_tiempo = 15  # La simulación va 15x más rápida visualmente
+        # Multiplicador de tiempo para acelerar animación
+        self.acelerador_tiempo = 15
         
-        # Frame superior para controles
+        # Frame superior con controles
         self.frame_controles = tk.Frame(root, bg='#f0f0f0')
         self.frame_controles.pack(pady=10)
         
+        # Botón iniciar simulación
         self.btn_iniciar = tk.Button(
             self.frame_controles,
             text="Iniciar Simulación",
@@ -45,6 +49,7 @@ class InterfazSimulador:
         )
         self.btn_iniciar.pack(side=tk.LEFT, padx=10)
         
+        # Botón reiniciar
         self.btn_reiniciar = tk.Button(
             self.frame_controles,
             text="Reiniciar",
@@ -58,6 +63,7 @@ class InterfazSimulador:
         )
         self.btn_reiniciar.pack(side=tk.LEFT, padx=10)
         
+        # Botón generar ensayos
         self.btn_ensayos = tk.Button(
             self.frame_controles,
             text="Generar 2000 Ensayos",
@@ -77,7 +83,7 @@ class InterfazSimulador:
             text="Velocidad:",
             font=('Arial', 10, 'bold'),
             bg='#f0f0f0'
-        ).pack(side=tk.LEFT, padx=(20, 5))
+        ).pack(side=tk.LEFT, padx=(20,5))
         
         self.velocidad_var = tk.StringVar(value="15")
         self.combo_velocidad = tk.Spinbox(
@@ -98,7 +104,7 @@ class InterfazSimulador:
             bg='#f0f0f0'
         ).pack(side=tk.LEFT, padx=5)
         
-        # Canvas para dibujar
+        # Canvas principal para dibujar cajas y personas
         self.canvas = tk.Canvas(
             root,
             width=self.canvas_width,
@@ -113,6 +119,7 @@ class InterfazSimulador:
         self.frame_info = tk.Frame(root, bg='#f0f0f0')
         self.frame_info.pack(pady=10)
         
+        # Label informativo de estado de personas
         self.label_info = tk.Label(
             self.frame_info,
             text="🟡 Esperando | 🔴 Atendiendo | 🟢 Cliente Objetivo (está en las 3 filas simultáneamente)",
@@ -122,23 +129,25 @@ class InterfazSimulador:
         )
         self.label_info.pack()
         
-        # Label para mostrar tiempo transcurrido
+        # Label de tiempo transcurrido / resultado final
         self.label_tiempo = tk.Label(
             self.frame_info,
-            text="",  # Vacío inicialmente, se muestra solo al finalizar
+            text="",
             font=('Arial', 11, 'bold'),
             bg='#f0f0f0',
             fg='#FF5722'
         )
         self.label_tiempo.pack(pady=5)
         
+        # Variables de control
         self.simulacion_en_curso = False
         self.tiempo_inicio = None
-        self.actualizar_velocidad()  # Aplicar velocidad inicial
+        self.actualizar_velocidad()
         self.dibujar_cajas_iniciales()
     
+    # --------------------------- Funciones de velocidad ---------------------------
     def actualizar_velocidad(self):
-        """Actualiza el acelerador de tiempo según el valor del spinbox"""
+        """Actualiza el acelerador de tiempo según Spinbox"""
         try:
             self.acelerador_tiempo = int(self.velocidad_var.get())
             if self.acelerador_tiempo < 1:
@@ -148,129 +157,114 @@ class InterfazSimulador:
             self.acelerador_tiempo = 15
             self.velocidad_var.set("15")
     
+    # --------------------------- Dibujado inicial ---------------------------
     def dibujar_cajas_iniciales(self):
-        """Dibuja las cajas vacías al inicio (usando cajeros aleatorios del simulador)"""
+        """Dibuja las cajas vacías al inicio con títulos y colores"""
         self.canvas.delete("all")
         
         spacing = 20
-        start_x = (self.canvas_width - (3 * self.caja_width + 2 * spacing)) // 2
+        start_x = (self.canvas_width - (3*self.caja_width + 2*spacing)) // 2
         
         for i, caja in enumerate(self.simulador.cajas):
-            x = start_x + i * (self.caja_width + spacing)
+            x = start_x + i*(self.caja_width + spacing)
             y = 50
-
+            
             tipo_caja = "EXPRESS" if caja.express else "NORMAL"
             cajero = caja.cajero.upper()
             limite = "(≤10 art.)" if caja.express else "(≤50 art.)"
-            velocidad = "⚡ 3-5s/art." if caja.cajero == "Experto" else "⚡ 6-9s/art."
+            velocidad = "⚡ 3-5s/art." if caja.cajero=="Experto" else "⚡ 6-9s/art."
             
+            # Rectángulo caja
             self.canvas.create_rectangle(
-                x, y, x + self.caja_width, y + self.caja_height,
+                x, y, x+self.caja_width, y+self.caja_height,
                 fill=self.colores_caja[i],
                 outline='#333',
                 width=3,
                 tags=f'caja_{i}'
             )
             
-            self.canvas.create_text(
-                x + self.caja_width // 2, y + 12,
-                text=f"CAJA {i + 1} - {tipo_caja}",
-                font=('Arial', 12, 'bold'),
-                fill='white'
-            )
-            
-            self.canvas.create_text(
-                x + self.caja_width // 2, y + 28,
-                text=f"Cajero {cajero}",
-                font=('Arial', 10, 'bold'),
-                fill='white'
-            )
-            
-            self.canvas.create_text(
-                x + self.caja_width // 2, y + 43,
-                text=velocidad,
-                font=('Arial', 9),
-                fill='white'
-            )
-            
-            self.canvas.create_text(
-                x + self.caja_width // 2, y + 57,
-                text=limite,
-                font=('Arial', 8),
-                fill='white'
-            )
-
+            # Textos de caja
+            self.canvas.create_text(x+self.caja_width//2, y+12,
+                                    text=f"CAJA {i+1} - {tipo_caja}",
+                                    font=('Arial', 12, 'bold'),
+                                    fill='white')
+            self.canvas.create_text(x+self.caja_width//2, y+28,
+                                    text=f"Cajero {cajero}",
+                                    font=('Arial', 10, 'bold'),
+                                    fill='white')
+            self.canvas.create_text(x+self.caja_width//2, y+43,
+                                    text=velocidad,
+                                    font=('Arial', 9),
+                                    fill='white')
+            self.canvas.create_text(x+self.caja_width//2, y+57,
+                                    text=limite,
+                                    font=('Arial', 8),
+                                    fill='white')
     
+    # --------------------------- Dibujado de estado ---------------------------
     def dibujar_estado(self):
         """Dibuja el estado actual de las cajas y personas"""
         self.dibujar_cajas_iniciales()
         
         spacing = 20
-        start_x = (self.canvas_width - (3 * self.caja_width + 2 * spacing)) // 2
+        start_x = (self.canvas_width - (3*self.caja_width + 2*spacing)) // 2
         
         for i, caja in enumerate(self.simulador.cajas):
-            x = start_x + i * (self.caja_width + spacing)
+            x = start_x + i*(self.caja_width + spacing)
             y = 50
             
-            # Los títulos ya están dibujados en dibujar_cajas_iniciales()
-            
-            # Dibujar personas en la fila
+            # Número de personas en fila
             personas_restantes = len(caja.personas)
-            self.canvas.create_text(
-                x + self.caja_width // 2,
-                y + 80,
-                text=f"👥 En fila: {personas_restantes}",
-                font=('Arial', 10, 'bold'),
-                fill='white'
-            )
+            self.canvas.create_text(x+self.caja_width//2,
+                                    y+80,
+                                    text=f"👥 En fila: {personas_restantes}",
+                                    font=('Arial', 10, 'bold'),
+                                    fill='white')
             
-            # Dibujar círculos para cada persona FUERA de la caja, en fila VERTICAL
-            persona_spacing = 20  # Espaciado vertical entre personas
-            caja_bottom = y + self.caja_height  # Parte inferior de la caja
-            fila_x = x + self.caja_width // 2  # Centrado horizontalmente en la caja
-            start_fila_y = caja_bottom + 30  # Posición Y inicial de la fila (debajo de la caja)
+            # Dibujar personas en fila vertical debajo de la caja
+            persona_spacing = 20
+            caja_bottom = y+self.caja_height
+            fila_x = x+self.caja_width//2
+            start_fila_y = caja_bottom+30
             
             for idx, persona in enumerate(caja.personas):
                 px = fila_x
-                py = start_fila_y + idx * persona_spacing
+                py = start_fila_y + idx*persona_spacing
                 
-                # Color según el tipo de persona
+                # Color según estado
                 if persona.es_objetivo:
-                    # Cliente OBJETIVO en VERDE (está en las 3 filas simultáneamente)
                     color_persona = '#00FF00'  # Verde brillante
                     outline_color = '#00AA00'
                     outline_width = 3
-                elif idx == 0 and caja.atendiendo:
-                    # Primera persona siendo atendida en ROJO
-                    color_persona = '#FF6B6B'
+                elif idx==0 and caja.atendiendo:
+                    color_persona = '#FF6B6B'  # Rojo
                     outline_color = '#C92A2A'
                     outline_width = 3
                 else:
-                    # Personas esperando en AMARILLO
-                    color_persona = '#FFD700'
+                    color_persona = '#FFD700'  # Amarillo
                     outline_color = '#333'
                     outline_width = 2
                 
-                # Círculo para la persona (partícula)
+                # Dibujar círculo
                 self.canvas.create_oval(
-                    px - self.persona_radius,
-                    py - self.persona_radius,
-                    px + self.persona_radius,
-                    py + self.persona_radius,
+                    px-self.persona_radius,
+                    py-self.persona_radius,
+                    px+self.persona_radius,
+                    py+self.persona_radius,
                     fill=color_persona,
                     outline=outline_color,
                     width=outline_width
                 )
                 
-                # Número de artículos dentro del círculo
+                # Número de artículos
                 self.canvas.create_text(
-                    px,
-                    py,
+                    px, py,
                     text=str(persona.articulos),
                     font=('Arial', 8, 'bold'),
                     fill='#333' if not persona.es_objetivo else '#000'
                 )
     
+    # --------------------------- Actualización visual ---------------------------
     def actualizar_visualizacion(self):
         """Actualiza la visualización durante la simulación"""
         if not self.simulacion_en_curso:
@@ -278,7 +272,7 @@ class InterfazSimulador:
         
         self.dibujar_estado()
         
-        # Actualizar información con detalles de tiempos
+        # Información de estado en label
         info_texto = "⏱️ Simulación en curso... | "
         for i, caja in enumerate(self.simulador.cajas):
             personas_restantes = len(caja.personas)
@@ -287,14 +281,13 @@ class InterfazSimulador:
         
         self.label_info.config(text=info_texto)
         
-        # NO mostrar tiempo durante la simulación, solo al finalizar
-        
-        # Verificar si el cliente objetivo fue atendido (finaliza la simulación)
+        # Revisar si la simulación terminó (cliente objetivo atendido)
         if self.simulador.objetivo_atendido:
             self.finalizar_simulacion()
         else:
             self.root.after(500, self.actualizar_visualizacion)
     
+    # --------------------------- Iniciar simulación ---------------------------
     def iniciar_simulacion(self):
         """Inicia la simulación"""
         if self.simulacion_en_curso:
@@ -302,67 +295,82 @@ class InterfazSimulador:
         
         self.simulacion_en_curso = True
         self.btn_iniciar.config(state='disabled')
-        
-        # Actualizar velocidad antes de iniciar
         self.actualizar_velocidad()
         
-        # Iniciar contador de tiempo
+        # Guardar tiempo de inicio
         self.tiempo_inicio = time.time()
-        
-        # Pasar el acelerador de tiempo al simulador
         self.simulador.acelerador_tiempo = self.acelerador_tiempo
         
-        # Generar personas
+        # Inicializar cajas y generar personas
         self.simulador.iniciar_cajas()
         self.simulador.generar_personas_para_todas()
         self.dibujar_estado()
         
-        # Iniciar simulación en un hilo separado
+        # Ejecutar simulación en hilo separado
         def ejecutar():
             self.simulador.ejecutar_simulacion()
         
         threading.Thread(target=ejecutar, daemon=True).start()
         
-        # Actualizar visualización
+        # Actualizar visualización en tiempo real
         self.root.after(500, self.actualizar_visualizacion)
-    
+        
+    # --------------------------- Finalizar simulación ---------------------------
     def finalizar_simulacion(self):
-        """Finaliza la simulación y muestra resultados"""
+        #Finaliza la simulación mostrando tiempos y resaltando ganadora#
         self.simulacion_en_curso = False
         self.btn_iniciar.config(state='normal')
         
-        # Calcular tiempo REAL (multiplicando el tiempo de animación por el acelerador)
-        tiempo_animacion = time.time() - self.tiempo_inicio if self.tiempo_inicio else 0
-        tiempo_real = tiempo_animacion * self.acelerador_tiempo
-        
-        caja_objetivo = self.simulador.caja_ganadora_objetivo
-        articulos_objetivo = self.simulador.cliente_objetivo.articulos if self.simulador.cliente_objetivo else 0
-        
-        resultado_texto = f"✓ ¡Cliente Objetivo atendido! Simulación finalizada.\n"
-        resultado_texto += f"🟢 Cliente Objetivo ({articulos_objetivo} artículos) atendido PRIMERO en: 🏆 CAJA {caja_objetivo} 🏆\n"
-        resultado_texto += f"Las otras cajas se detuvieron automáticamente."
-        
-        self.label_info.config(text=resultado_texto, fg='#4CAF50')
-        self.label_tiempo.config(text=f"⏱️ Tiempo en ser atendido: {tiempo_real:.1f}s (tiempo real calculado)", fg='#4CAF50')
-        
-        # Marcar la caja que atendió primero al cliente objetivo
+        # Dibujar estado final
         self.dibujar_estado()
+        
+        # ---------------- Mostrar tiempos en un label ----------------
+        resultado_texto = "Tiempos de atención por caja:\n"
+        for caja in self.simulador.cajas:
+            resultado_texto += f"Caja {caja.id_caja}: {caja.tiempo_total:.1f}s\n"
+        
+        # Primera caja que atendió al cliente objetivo
+        if self.simulador.caja_ganadora_objetivo:
+            resultado_texto += f"\nPrimera caja que atendió al cliente objetivo: Caja {self.simulador.caja_ganadora_objetivo}"
+        
+        # Mostrar en label_tiempo
+        self.label_tiempo.config(text=resultado_texto, fg='#FF5722')
+        
+        # ---------------- Resaltar caja ganadora en canvas ----------------
         spacing = 20
-        start_x = (self.canvas_width - (3 * self.caja_width + 2 * spacing)) // 2
+        start_x = (self.canvas_width - (3*self.caja_width + 2*spacing)) // 2
+        caja_objetivo = self.simulador.caja_ganadora_objetivo
+        idx_objetivo = -1  # Default value if no winner
         
         if caja_objetivo:
             idx_objetivo = caja_objetivo - 1
-            x_objetivo = start_x + idx_objetivo * (self.caja_width + spacing)
+            if 0 <= idx_objetivo < len(self.simulador.cajas):
+                x_objetivo = start_x + idx_objetivo*(self.caja_width + spacing)
+                y = 50
+                # Usar la caja correcta para el tiempo
+                caja_ganadora = self.simulador.cajas[idx_objetivo]
+                self.canvas.create_text(
+                    x_objetivo + self.caja_width//2,
+                    y + self.caja_height - 40,
+                    text=f"🏆 CAJA GANADORA 🏆",
+                    font=('Arial', 13, 'bold'),
+                    fill='#00FF00'
+                )
+        
+        # ---------------- Dibujar tiempos sobre cada caja ----------------
+        for i, caja in enumerate(self.simulador.cajas):
+            x = start_x + i*(self.caja_width + spacing)
             y = 50
-            
+            color_texto = '#00FF00' if (i == idx_objetivo) else '#FF5722'
             self.canvas.create_text(
-                x_objetivo + self.caja_width // 2,
-                y + self.caja_height - 40,
-                text="🏆 GANADORA 🏆\nAtendió primero\nal cliente objetivo",
-                font=('Arial', 13, 'bold'),
-                fill='#00FF00'
+            x + self.caja_width//2,
+                y + self.caja_height - 60,
+                text=f"El tiempo de atención fue: {caja.tiempo_total:.1f}s",
+                font=('Arial', 12, 'bold'),
+                fill=color_texto
             )
-    
+
+    # --------------------------- Reiniciar ---------------------------
     def reiniciar(self):
         """Reinicia la simulación"""
         self.simulacion_en_curso = False
@@ -374,8 +382,9 @@ class InterfazSimulador:
             text="● Esperando | ● Atendiendo | ● Cliente Objetivo (está en las 3 filas simultáneamente)",
             fg='#333'
         )
-        self.label_tiempo.config(text="", fg='#FF5722')  # Vacío hasta que termine
+        self.label_tiempo.config(text="", fg='#FF5722')
     
+    # --------------------------- Generar 2000 ensayos ---------------------------
     def generar_ensayos(self):
         """Genera 2000 ensayos y exporta a Excel"""
         self.btn_ensayos.config(state='disabled', text="Generando...")
@@ -386,9 +395,8 @@ class InterfazSimulador:
             simulador_ensayos.generar_ensayos(2000)
             archivo = simulador_ensayos.exportar_excel()
             
-            # Mostrar estadísticas
             total = len(simulador_ensayos.resultados)
-            ganadores_express = sum(1 for r in simulador_ensayos.resultados if r['tipo_ganador'] == 'Express')
+            ganadores_express = sum(1 for r in simulador_ensayos.resultados if r['tipo_ganador']=='Express')
             ganadores_normal = total - ganadores_express
             
             mensaje = f"✓ 2000 ensayos completados!\n"
@@ -399,5 +407,4 @@ class InterfazSimulador:
             self.label_info.config(text=mensaje, fg='#4CAF50')
             self.btn_ensayos.config(state='normal', text="Generar 2000 Ensayos Excel")
         
-        # Ejecutar en un hilo separado para no bloquear la interfaz
         threading.Thread(target=ejecutar_ensayos, daemon=True).start()
