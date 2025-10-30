@@ -9,7 +9,7 @@ class InterfazSimulador:
     def __init__(self, root):
         self.root = root
         self.root.title("Simulador de Cajas de Supermercado")
-        self.root.geometry("1000x800")
+        self.root.geometry("1000x950") #cambia esto para que se vean los maracadores de tiempo al final de la simulacion
         self.root.configure(bg='#f0f0f0')
         
         # Asegura que la ventana aparezca al frente
