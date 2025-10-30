@@ -3,13 +3,14 @@ import threading
 import time
 from clases import SimuladorSupermercado
 from generador_ensayos import EnsayoSimulador
+import variables
 
 
 class InterfazSimulador:
     def __init__(self, root):
-        self.root = root
+        self.root = root # Ventana principal
         self.root.title("Simulador de Cajas de Supermercado")
-        self.root.geometry("1000x950") #cambia esto para que se vean los maracadores de tiempo al final de la simulacion
+        self.root.geometry("1200x950")#Tamaño de la ventana  al inicio
         self.root.configure(bg='#f0f0f0')
         
         # Asegura que la ventana aparezca al frente
@@ -18,7 +19,8 @@ class InterfazSimulador:
         self.root.after_idle(self.root.attributes, '-topmost', False)
         
         # Inicializa el simulador con 3 cajas
-        self.simulador = SimuladorSupermercado(num_cajas=3)
+        self.caso_prueba_actual = "Sesgo"  # Caso de prueba por defecto
+        self.simulador = SimuladorSupermercado(caso_prueba=self.caso_prueba_actual)
         
         # Dimensiones y visualización
         self.canvas_width = 950
@@ -64,9 +66,10 @@ class InterfazSimulador:
         self.btn_reiniciar.pack(side=tk.LEFT, padx=10)
         
         # Botón generar ensayos
+        self.cantidad_ensayos_actual = variables.CASOS_PRUEBA[self.caso_prueba_actual]['cantidad_ensayos']
         self.btn_ensayos = tk.Button(
             self.frame_controles,
-            text="Generar 2000 Ensayos",
+            text=f"Generar {self.cantidad_ensayos_actual} Ensayos",
             command=self.generar_ensayos,
             bg='#9C27B0',
             fg='white',
@@ -103,6 +106,32 @@ class InterfazSimulador:
             font=('Arial', 10),
             bg='#f0f0f0'
         ).pack(side=tk.LEFT, padx=5)
+        
+        # Selector de caso de prueba (estilizado)
+        self.caso_var = tk.StringVar(value="Sesgo")
+        opciones_casos = list(variables.CASOS_PRUEBA.keys())
+        self.combo_caso = tk.OptionMenu(
+            self.frame_controles,
+            self.caso_var,
+            *opciones_casos,
+            command=self.cambiar_caso_prueba
+        )
+        self.combo_caso.config(
+            font=('Arial', 10, 'bold'),
+            width=10,
+            bg='#ffffff',
+            fg='#333333',
+            activebackground='#e0e0e0',
+            activeforeground='#000000',
+            relief='raised',
+            bd=2,
+            highlightthickness=1,
+            highlightbackground='#cccccc'
+        )
+        self.combo_caso.pack(side=tk.LEFT, padx=(20,10))
+        
+        # Separador
+        tk.Label(self.frame_controles, text="|", bg='#f0f0f0', font=('Arial', 12)).pack(side=tk.LEFT, padx=10)
         
         # Canvas principal para dibujar cajas y personas
         self.canvas = tk.Canvas(
@@ -145,6 +174,21 @@ class InterfazSimulador:
         self.actualizar_velocidad()
         self.dibujar_cajas_iniciales()
     
+    # --------------------------- Cambiar caso de prueba ---------------------------
+    def cambiar_caso_prueba(self, caso_seleccionado):
+        """Cambia el caso de prueba actual"""
+        self.caso_prueba_actual = caso_seleccionado
+        self.simulador = SimuladorSupermercado(caso_prueba=self.caso_prueba_actual)
+        self.dibujar_cajas_iniciales()
+        
+        # Actualizar cantidad de ensayos y texto del botón
+        self.cantidad_ensayos_actual = variables.CASOS_PRUEBA[self.caso_prueba_actual]['cantidad_ensayos']
+        self.btn_ensayos.config(text=f"Generar {self.cantidad_ensayos_actual} Ensayos")
+        
+        print(f"Caso de prueba cambiado a: {caso_seleccionado}")
+        print(f"Cantidad de ensayos: {self.cantidad_ensayos_actual}")
+        print(f"Descripción: {variables.CASOS_PRUEBA[self.caso_prueba_actual]['descripcion']}")
+    
     # --------------------------- Funciones de velocidad ---------------------------
     def actualizar_velocidad(self):
         """Actualiza el acelerador de tiempo según Spinbox"""
@@ -172,7 +216,7 @@ class InterfazSimulador:
             tipo_caja = "EXPRESS" if caja.express else "NORMAL"
             cajero = caja.cajero.upper()
             limite = "(≤10 art.)" if caja.express else "(≤50 art.)"
-            velocidad = "⚡ 3-5s/art." if caja.cajero=="Experto" else "⚡ 6-9s/art."
+            velocidad = "1-4s/art." if caja.cajero=="Experto" else "4.1-9s/art."
             
             # Rectángulo caja
             self.canvas.create_rectangle(
@@ -327,7 +371,7 @@ class InterfazSimulador:
         # ---------------- Mostrar tiempos en un label ----------------
         resultado_texto = "Tiempos de atención por caja:\n"
         for caja in self.simulador.cajas:
-            resultado_texto += f"Caja {caja.id_caja}: {caja.tiempo_total:.1f}s\n"
+            resultado_texto += f"- Caja {caja.id_caja}: {formatear_tiempo_segundos_a_minutos(caja.tiempo_total)}\n"
         
         # Primera caja que atendió al cliente objetivo
         if self.simulador.caja_ganadora_objetivo:
@@ -362,10 +406,12 @@ class InterfazSimulador:
             x = start_x + i*(self.caja_width + spacing)
             y = 50
             color_texto = '#00FF00' if (i == idx_objetivo) else '#FF5722'
+            # Mostrar tiempo total en cada caja en minutos y segundos
+            tiempo_minutos = formatear_tiempo_segundos_a_minutos(caja.tiempo_total)
             self.canvas.create_text(
             x + self.caja_width//2,
                 y + self.caja_height - 60,
-                text=f"El tiempo de atención fue: {caja.tiempo_total:.1f}s",
+                text=f"El tiempo de atención fue: {tiempo_minutos}",
                 font=('Arial', 12, 'bold'),
                 fill=color_texto
             )
@@ -376,7 +422,7 @@ class InterfazSimulador:
         self.simulacion_en_curso = False
         self.tiempo_inicio = None
         self.btn_iniciar.config(state='normal')
-        self.simulador = SimuladorSupermercado(num_cajas=3)
+        self.simulador = SimuladorSupermercado(caso_prueba=self.caso_prueba_actual)
         self.dibujar_cajas_iniciales()
         self.label_info.config(
             text="● Esperando | ● Atendiendo | ● Cliente Objetivo (está en las 3 filas simultáneamente)",
@@ -384,27 +430,50 @@ class InterfazSimulador:
         )
         self.label_tiempo.config(text="", fg='#FF5722')
     
-    # --------------------------- Generar 2000 ensayos ---------------------------
+    # --------------------------- Generar ensayos ---------------------------
     def generar_ensayos(self):
-        """Genera 2000 ensayos y exporta a Excel"""
+        f"""Genera {self.cantidad_ensayos_actual} ensayos estadísticos"""
         self.btn_ensayos.config(state='disabled', text="Generando...")
-        self.label_info.config(text="⏳ Generando 2000 ensayos instantáneos...", fg='#FF9800')
+        self.label_info.config(text=f"⏳ Generando {self.cantidad_ensayos_actual} ensayos instantáneos...", fg='#FF9800')
         
         def ejecutar_ensayos():
-            simulador_ensayos = EnsayoSimulador()
-            simulador_ensayos.generar_ensayos(2000)
-            archivo = simulador_ensayos.exportar_excel()
-            
-            total = len(simulador_ensayos.resultados)
-            ganadores_express = sum(1 for r in simulador_ensayos.resultados if r['tipo_ganador']=='Express')
-            ganadores_normal = total - ganadores_express
-            
-            mensaje = f"✓ 2000 ensayos completados!\n"
-            mensaje += f"Cajas Normales ganaron: {ganadores_normal} ({ganadores_normal/20:.1f}%)\n"
-            mensaje += f"Caja Express ganó: {ganadores_express} ({ganadores_express/20:.1f}%)\n"
-            mensaje += f"Archivo Excel: {archivo}"
-            
-            self.label_info.config(text=mensaje, fg='#4CAF50')
-            self.btn_ensayos.config(state='normal', text="Generar 2000 Ensayos Excel")
+            try:
+                print(f"Iniciando generación de {self.cantidad_ensayos_actual} ensayos...")
+                simulador_ensayos = EnsayoSimulador(caso_prueba=self.caso_prueba_actual)
+                simulador_ensayos.generar_ensayos(self.cantidad_ensayos_actual)
+                print(f"Ensayos generados: {len(simulador_ensayos.resultados)}")
+                
+                archivo = simulador_ensayos.exportar_excel()
+                
+                total = len(simulador_ensayos.resultados)
+                ganadores_express = sum(1 for r in simulador_ensayos.resultados if r['tipo_ganador']=='Express')
+                ganadores_normal = total - ganadores_express
+                
+                # Calcular tiempos promedio
+                tiempo_promedio_caja1 = sum(r['caja1_tiempo'] for r in simulador_ensayos.resultados) / total
+                tiempo_promedio_caja2 = sum(r['caja2_tiempo'] for r in simulador_ensayos.resultados) / total
+                tiempo_promedio_caja3 = sum(r['caja3_tiempo'] for r in simulador_ensayos.resultados) / total
+                
+                mensaje = f"✓ {self.cantidad_ensayos_actual} ensayos completados!\n\n"
+                mensaje += f"GANADORES POR TIPO:\n"
+                mensaje += f"Cajas Normales (1+2): {ganadores_normal} ({ganadores_normal/total*100:.1f}%)\n"
+                mensaje += f"Caja Express (3): {ganadores_express} ({ganadores_express/total*100:.1f}%)\n\n"
+                mensaje += f"TIEMPOS PROMEDIO:\n"
+                mensaje += f"Caja 1: {formatear_tiempo_segundos_a_minutos(tiempo_promedio_caja1)} | Caja 2: {formatear_tiempo_segundos_a_minutos(tiempo_promedio_caja2)} | Caja 3: {formatear_tiempo_segundos_a_minutos(tiempo_promedio_caja3)}\n\n"
+                
+                self.label_info.config(text=mensaje, fg='#4CAF50')
+                self.btn_ensayos.config(state='normal', text=f"Generar {self.cantidad_ensayos_actual} Ensayos")
+                
+            except Exception as e:
+                error_msg = f"Error al generar ensayos: {str(e)}"
+                print(error_msg)
+                self.label_info.config(text=error_msg, fg='#F44336')
+                self.btn_ensayos.config(state='normal', text=f"Generar {self.cantidad_ensayos_actual} Ensayos")
         
         threading.Thread(target=ejecutar_ensayos, daemon=True).start()
+
+def formatear_tiempo_segundos_a_minutos(segundos):
+    """Convierte segundos a formato minutos y segundos"""
+    minutos = int(segundos // 60)
+    segundos_restantes = int(segundos % 60)
+    return f"{minutos}m {segundos_restantes}s"
