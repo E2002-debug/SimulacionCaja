@@ -1,6 +1,7 @@
 import random
 import time
 import threading
+import variables
 
 # ---------------------------
 # Clase Persona
@@ -47,24 +48,22 @@ class Caja:
 
     def generar_personas(self):
         """
-        Genera aleatoriamente personas en la fila según el tipo de caja
+        Genera aleatoriamente personas en la fila según la configuración del caso de prueba
         """
-        self.cantidad_personas = random.randint(10, 16) if self.express else random.randint(3, 7)
+        config = self.config_personas
+        self.cantidad_personas = random.randint(config['personas_min'], config['personas_max'])
         self.personas = []
 
         for _ in range(self.cantidad_personas):
-            if self.express:
-                # Caja express: la mayoría con pocos artículos
-                articulos = random.randint(1,5) if random.random() < 0.8 else random.randint(6,10)
-            else:
-                # Caja normal: mezcla de compras
-                r = random.random()
-                if r < 0.5:
-                    articulos = random.randint(1,15)
-                elif r < 0.8:
-                    articulos = random.randint(16,30)
-                else:
-                    articulos = random.randint(31,50)
+            r = random.random()
+            articulos = None
+            for prob, min_art, max_art in config['articulos_distribucion']:
+                if r <= prob:
+                    articulos = random.randint(min_art, max_art)
+                    break
+            # Si no se asignó (por algún error), usar valores por defecto
+            if articulos is None:
+                articulos = random.randint(1, 10)
             self.personas.append(Persona(articulos))
         return self.personas
 
@@ -98,11 +97,15 @@ class Caja:
 # Clase SimuladorSupermercado
 # ---------------------------
 class SimuladorSupermercado:
-    def __init__(self, num_cajas=3):
+    def __init__(self, num_cajas=3, caso_prueba=1):
         """
         Simulador de todas las cajas.
+        :param num_cajas: número de cajas (debe coincidir con la configuración del caso)
+        :param caso_prueba: número del caso de prueba a usar
         """
-        self.num_cajas = num_cajas
+        self.caso_prueba = caso_prueba
+        self.config = variables.CASOS_PRUEBA[caso_prueba]
+        self.num_cajas = len(self.config['cajas'])  # Usar el número de cajas del caso
         self.cajas = []
         self.acelerador_tiempo = 15
         self.tiempo_total_caja = []
@@ -114,23 +117,38 @@ class SimuladorSupermercado:
 
     def iniciar_cajas(self):
         """
-        Inicializa las cajas con cajeros aleatorios y tipo express
+        Inicializa las cajas según la configuración del caso de prueba
         """
         self.cajas = []
-        for i in range(self.num_cajas):
-            rol = random.choice(['Experto','Principiante'])
-            t_escaneo = random.uniform(2.5,4.0) if rol=='Experto' else random.uniform(4.5,7.0)
-            express = (i == 2)
-            caja = Caja(i+1, t_escaneo, express)
-            caja.cajero = rol
+        for i, caja_config in enumerate(self.config['cajas']):
+            # Asignar cajero aleatoriamente (Experto o Principiante)
+            cajero_aleatorio = random.choice(['Experto', 'Principiante'])
+            
+            # Determinar tiempos de escaneo según el cajero asignado
+            if cajero_aleatorio == 'Experto':
+                t_escaneo = random.uniform(2.5, 4.0)
+            else:  # Principiante
+                t_escaneo = random.uniform(4.5, 7.0)
+            
+            caja = Caja(i+1, t_escaneo, caja_config['express'])
+            caja.cajero = cajero_aleatorio
+            caja.tipo = caja_config['tipo']
+            caja.config_personas = caja_config  # Guardar config para generar_personas
             self.cajas.append(caja)
 
     def generar_personas_para_todas(self):
         """
         Genera personas para todas las cajas y agrega al cliente objetivo al final de cada fila
         """
-        articulos_objetivo = random.randint(3,8)
-        tiempo_cobro_objetivo = random.randint(15,30)
+        config_obj = self.config['cliente_objetivo']
+        articulos_objetivo = random.randint(
+            config_obj['articulos_min'], 
+            config_obj['articulos_max']
+        )
+        tiempo_cobro_objetivo = random.randint(
+            self.config['tiempo_cobro_min'], 
+            self.config['tiempo_cobro_max']
+        )
 
         for caja in self.cajas:
             caja.generar_personas()
