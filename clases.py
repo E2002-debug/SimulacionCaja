@@ -80,7 +80,7 @@ class Caja:
             self.tiempo_total += tiempo_persona
 
             # Simula tiempo real acelerado
-            acelerador = getattr(simulador, 'acelerador_tiempo', 15)
+            acelerador = getattr(simulador, 'acelerador_tiempo', 50)
             time.sleep(tiempo_persona / acelerador)
             self.personas.pop(0)  # Elimina la persona atendida
             self.atendiendo = False
@@ -107,7 +107,7 @@ class SimuladorSupermercado:
         self.config = variables.CASOS_PRUEBA[caso_prueba]
         self.num_cajas = len(self.config['cajas'])  # Usar el número de cajas del caso
         self.cajas = []
-        self.acelerador_tiempo = 15
+        self.acelerador_tiempo = 50
         self.tiempo_total_caja = []
         self.mejor_caja = None
         self.cliente_objetivo = None

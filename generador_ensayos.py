@@ -25,7 +25,7 @@ except ImportError:
 class EnsayoSimulador:
     """Simulador que calcula tiempos sin esperar (sin time.sleep)"""
     
-    def __init__(self, caso_prueba="Sesgo"):
+    def __init__(self, caso_prueba="Uniforme"):
         self.caso_prueba = caso_prueba
         self.config = variables.CASOS_PRUEBA[caso_prueba]
         self.resultados = []
@@ -103,6 +103,14 @@ class EnsayoSimulador:
         tiempos = []
         for caja in cajas:
             personas = self.generar_personas_caja(caja['config'])
+            
+            # Calcular cantidad total de productos en esta caja
+            total_productos = sum(persona[0] for persona in personas)  # persona[0] es la cantidad de artículos
+            
+            # Calcular promedio del tiempo de cobro para esta caja
+            tiempos_cobro_caja = [persona[1] for persona in personas]  # persona[1] es el tiempo de cobro
+            promedio_cobro_caja = sum(tiempos_cobro_caja) / len(tiempos_cobro_caja) if tiempos_cobro_caja else 0
+            
             tiempo = self.calcular_tiempo_hasta_objetivo(
                 personas, 
                 cliente_objetivo, 
@@ -114,6 +122,8 @@ class EnsayoSimulador:
                 'cajero': caja['cajero'],
                 'tiempo_escaneo': round(caja['tiempo_escaneo'], 2),
                 'num_personas': len(personas),
+                'total_productos': total_productos,
+                'promedio_cobro': round(promedio_cobro_caja, 2),
                 'tiempo_total': round(tiempo, 2)
             })
         
@@ -130,15 +140,25 @@ class EnsayoSimulador:
         return {
             'ensayo': numero_ensayo,
             'articulos_objetivo': articulos_objetivo,
+            'tiempo_cobro_objetivo': tiempo_cobro_objetivo,
             'caja_ganadora_id': ganadora['caja_id'],
             'tipo_ganador': tipo_ganador,
             'tiempo_ganador': ganadora['tiempo_total'],
             'caja1_tiempo': tiempos[0]['tiempo_total'],
             'caja1_personas': tiempos[0]['num_personas'],
+            'caja1_productos': tiempos[0]['total_productos'],
+            'caja1_tiempo_escaneo': tiempos[0]['tiempo_escaneo'],
+            'caja1_promedio_cobro': tiempos[0]['promedio_cobro'],
             'caja2_tiempo': tiempos[1]['tiempo_total'],
             'caja2_personas': tiempos[1]['num_personas'],
+            'caja2_productos': tiempos[1]['total_productos'],
+            'caja2_tiempo_escaneo': tiempos[1]['tiempo_escaneo'],
+            'caja2_promedio_cobro': tiempos[1]['promedio_cobro'],
             'caja3_tiempo': tiempos[2]['tiempo_total'],
-            'caja3_personas': tiempos[2]['num_personas']
+            'caja3_personas': tiempos[2]['num_personas'],
+            'caja3_productos': tiempos[2]['total_productos'],
+            'caja3_tiempo_escaneo': tiempos[2]['tiempo_escaneo'],
+            'caja3_promedio_cobro': tiempos[2]['promedio_cobro']
         }
     
     def generar_ensayos(self, cantidad=1000):
@@ -179,19 +199,34 @@ class EnsayoSimulador:
         ws = wb.active
         ws.title = "Ensayos"
         
+        # Calcular promedio del tiempo de cobro objetivo
+        tiempos_cobro = [resultado['tiempo_cobro_objetivo'] for resultado in self.resultados]
+        promedio_cobro = sum(tiempos_cobro) / len(tiempos_cobro) if tiempos_cobro else 0
+        
         # Definir encabezados
         encabezados = [
             'Ensayo',
             'Articulos_Objetivo',
+            'Tiempo_Cobro_Objetivo',
+            'Promedio_Cobro_Global',
             'Caja_Ganadora_ID',
             'Tipo_Ganador',
             'Tiempo_Ganador',
             'Caja1_Tiempo',
             'Caja1_Personas',
+            'Caja1_Productos',
+            'Caja1_Tiempo_Escaneo',
+            'Caja1_Promedio_Cobro',
             'Caja2_Tiempo',
             'Caja2_Personas',
+            'Caja2_Productos',
+            'Caja2_Tiempo_Escaneo',
+            'Caja2_Promedio_Cobro',
             'Caja3_Tiempo',
-            'Caja3_Personas'
+            'Caja3_Personas',
+            'Caja3_Productos',
+            'Caja3_Tiempo_Escaneo',
+            'Caja3_Promedio_Cobro'
         ]
         
         # Estilo para encabezados
@@ -210,18 +245,29 @@ class EnsayoSimulador:
         for row_idx, resultado in enumerate(self.resultados, start=2):
             ws.cell(row=row_idx, column=1, value=resultado['ensayo'])
             ws.cell(row=row_idx, column=2, value=resultado['articulos_objetivo'])
-            ws.cell(row=row_idx, column=3, value=resultado['caja_ganadora_id'])
-            ws.cell(row=row_idx, column=4, value=resultado['tipo_ganador'])
-            ws.cell(row=row_idx, column=5, value=round(resultado['tiempo_ganador'], 3))
-            ws.cell(row=row_idx, column=6, value=round(resultado['caja1_tiempo'], 3))
-            ws.cell(row=row_idx, column=7, value=resultado['caja1_personas'])
-            ws.cell(row=row_idx, column=8, value=round(resultado['caja2_tiempo'], 3))
-            ws.cell(row=row_idx, column=9, value=resultado['caja2_personas'])
-            ws.cell(row=row_idx, column=10, value=round(resultado['caja3_tiempo'], 3))
-            ws.cell(row=row_idx, column=11, value=resultado['caja3_personas'])
+            ws.cell(row=row_idx, column=3, value=resultado['tiempo_cobro_objetivo'])
+            ws.cell(row=row_idx, column=4, value=round(promedio_cobro, 2))  # Promedio global
+            ws.cell(row=row_idx, column=5, value=resultado['caja_ganadora_id'])
+            ws.cell(row=row_idx, column=6, value=resultado['tipo_ganador'])
+            ws.cell(row=row_idx, column=7, value=round(resultado['tiempo_ganador'], 3))
+            ws.cell(row=row_idx, column=8, value=round(resultado['caja1_tiempo'], 3))
+            ws.cell(row=row_idx, column=9, value=resultado['caja1_personas'])
+            ws.cell(row=row_idx, column=10, value=resultado['caja1_productos'])
+            ws.cell(row=row_idx, column=11, value=round(resultado['caja1_tiempo_escaneo'], 2))
+            ws.cell(row=row_idx, column=12, value=round(resultado['caja1_promedio_cobro'], 2))
+            ws.cell(row=row_idx, column=13, value=round(resultado['caja2_tiempo'], 3))
+            ws.cell(row=row_idx, column=14, value=resultado['caja2_personas'])
+            ws.cell(row=row_idx, column=15, value=resultado['caja2_productos'])
+            ws.cell(row=row_idx, column=16, value=round(resultado['caja2_tiempo_escaneo'], 2))
+            ws.cell(row=row_idx, column=17, value=round(resultado['caja2_promedio_cobro'], 2))
+            ws.cell(row=row_idx, column=18, value=round(resultado['caja3_tiempo'], 3))
+            ws.cell(row=row_idx, column=19, value=resultado['caja3_personas'])
+            ws.cell(row=row_idx, column=20, value=resultado['caja3_productos'])
+            ws.cell(row=row_idx, column=21, value=round(resultado['caja3_tiempo_escaneo'], 2))
+            ws.cell(row=row_idx, column=22, value=round(resultado['caja3_promedio_cobro'], 2))
             
-            # Resaltar la caja ganadora
-            ganadora_col = 3 + (resultado['caja_ganadora_id'] - 1) * 2 + 3  # Columna de tiempo ganadora
+            # Resaltar la caja ganadora (columna de tiempo ganadora)
+            ganadora_col = 5 + (resultado['caja_ganadora_id'] - 1) * 5 + 3  # Ajustado para nuevas columnas
             cell_ganadora = ws.cell(row=row_idx, column=ganadora_col)
             cell_ganadora.fill = PatternFill(start_color="FFEB3B", end_color="FFEB3B", fill_type="solid")
         
@@ -254,6 +300,11 @@ class EnsayoSimulador:
         tiempo_promedio_caja2 = sum(r['caja2_tiempo'] for r in self.resultados) / total
         tiempo_promedio_caja3 = sum(r['caja3_tiempo'] for r in self.resultados) / total
         
+        # Calcular promedios de productos por caja
+        productos_promedio_caja1 = sum(r['caja1_productos'] for r in self.resultados) / total
+        productos_promedio_caja2 = sum(r['caja2_productos'] for r in self.resultados) / total
+        productos_promedio_caja3 = sum(r['caja3_productos'] for r in self.resultados) / total
+        
         # Escribir estadísticas
         ws_stats.cell(row=1, column=1, value="ESTADÍSTICAS RESUMIDAS").font = Font(bold=True, size=14)
         ws_stats.cell(row=2, column=1, value=f"Total de ensayos: {total}")
@@ -271,6 +322,11 @@ class EnsayoSimulador:
         ws_stats.cell(row=14, column=1, value=f"Caja 1: {tiempo_promedio_caja1:.1f} segundos")
         ws_stats.cell(row=15, column=1, value=f"Caja 2: {tiempo_promedio_caja2:.1f} segundos")
         ws_stats.cell(row=16, column=1, value=f"Caja 3: {tiempo_promedio_caja3:.1f} segundos")
+        
+        ws_stats.cell(row=18, column=1, value="PRODUCTOS PROMEDIO POR CAJA:").font = Font(bold=True)
+        ws_stats.cell(row=19, column=1, value=f"Caja 1: {productos_promedio_caja1:.1f} productos")
+        ws_stats.cell(row=20, column=1, value=f"Caja 2: {productos_promedio_caja2:.1f} productos")
+        ws_stats.cell(row=21, column=1, value=f"Caja 3: {productos_promedio_caja3:.1f} productos")
         
         # Ajustar ancho de columna
         ws_stats.column_dimensions['A'].width = 50
@@ -342,3 +398,5 @@ def main():
     print(f"  Archivo Excel generado: {archivo}")
 
 
+if __name__ == "__main__":
+    main()

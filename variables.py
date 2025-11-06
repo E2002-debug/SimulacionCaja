@@ -63,7 +63,7 @@ CASOS_PRUEBA = {
             {
                 'tipo': 'Express',
                 'express': True,
-                'personas_min': 3,
+                'personas_min': 1,
                 'personas_max': 9,
                 'articulos_distribucion': [
                     (0.8, 1, 5),   # 80% de clientes: 1-5 artículos

@@ -31,7 +31,7 @@ class InterfazSimulador:
         self.colores_caja = ['#2196F3', '#2196F3', '#9C27B0']  # Azul, Azul, Morado
         
         # Multiplicador de tiempo para acelerar animación
-        self.acelerador_tiempo = 15
+        self.acelerador_tiempo = 50
         
         # Frame superior con controles
         self.frame_controles = tk.Frame(root, bg='#f0f0f0')
@@ -80,32 +80,14 @@ class InterfazSimulador:
         )
         self.btn_ensayos.pack(side=tk.LEFT, padx=10)
         
-        # Control de velocidad
+        # Indicador de velocidad fija
         tk.Label(
             self.frame_controles,
-            text="Velocidad:",
+            text="Velocidad: 50x más rápido",
             font=('Arial', 10, 'bold'),
-            bg='#f0f0f0'
+            bg='#f0f0f0',
+            fg='#2196F3'
         ).pack(side=tk.LEFT, padx=(20,5))
-        
-        self.velocidad_var = tk.StringVar(value="15")
-        self.combo_velocidad = tk.Spinbox(
-            self.frame_controles,
-            from_=1,
-            to=50,
-            textvariable=self.velocidad_var,
-            width=5,
-            font=('Arial', 10),
-            command=self.actualizar_velocidad
-        )
-        self.combo_velocidad.pack(side=tk.LEFT, padx=5)
-        
-        tk.Label(
-            self.frame_controles,
-            text="x más rápido",
-            font=('Arial', 10),
-            bg='#f0f0f0'
-        ).pack(side=tk.LEFT, padx=5)
         
         # Selector de caso de prueba (estilizado)
         self.caso_var = tk.StringVar(value="Sesgo")
@@ -171,7 +153,6 @@ class InterfazSimulador:
         # Variables de control
         self.simulacion_en_curso = False
         self.tiempo_inicio = None
-        self.actualizar_velocidad()
         self.dibujar_cajas_iniciales()
     
     # --------------------------- Cambiar caso de prueba ---------------------------
@@ -189,19 +170,7 @@ class InterfazSimulador:
         print(f"Cantidad de ensayos: {self.cantidad_ensayos_actual}")
         print(f"Descripción: {variables.CASOS_PRUEBA[self.caso_prueba_actual]['descripcion']}")
     
-    # --------------------------- Funciones de velocidad ---------------------------
-    def actualizar_velocidad(self):
-        """Actualiza el acelerador de tiempo según Spinbox"""
-        try:
-            self.acelerador_tiempo = int(self.velocidad_var.get())
-            if self.acelerador_tiempo < 1:
-                self.acelerador_tiempo = 1
-                self.velocidad_var.set("1")
-        except ValueError:
-            self.acelerador_tiempo = 15
-            self.velocidad_var.set("15")
-    
-    # --------------------------- Dibujado inicial ---------------------------
+    # --------------------------- Funciones de simulación ---------------------------
     def dibujar_cajas_iniciales(self):
         """Dibuja las cajas vacías al inicio con títulos y colores"""
         self.canvas.delete("all")
@@ -339,7 +308,6 @@ class InterfazSimulador:
         
         self.simulacion_en_curso = True
         self.btn_iniciar.config(state='disabled')
-        self.actualizar_velocidad()
         
         # Guardar tiempo de inicio
         self.tiempo_inicio = time.time()
@@ -471,7 +439,10 @@ class InterfazSimulador:
                 self.btn_ensayos.config(state='normal', text=f"Generar {self.cantidad_ensayos_actual} Ensayos")
         
         threading.Thread(target=ejecutar_ensayos, daemon=True).start()
-
+"""
+formatear_tiempo_segundos_a_minutos(segundos):
+Esta función convierte una cantidad de segundos en un formato legible de minutos y segundos.
+"""
 def formatear_tiempo_segundos_a_minutos(segundos):
     """Convierte segundos a formato minutos y segundos"""
     minutos = int(segundos // 60)
