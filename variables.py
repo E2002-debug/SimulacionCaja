@@ -120,6 +120,47 @@ CASOS_PRUEBA = {
         },
         'tiempo_cobro_min': 15,
         'tiempo_cobro_max': 30
+    },
+    "Sesgo 2": {
+        'descripcion': 'Caso Sesgo 2: Distribuciones sesgadas hacia la parte superior del rango',
+        'cantidad_ensayos': CANTIDAD_ENSAYOS,
+        'cajas': [
+            {
+                'tipo': 'Normal',
+                'express': False,
+                'personas_min': 1,
+                'personas_max': 5,  # Uniforme entre 1-5 personas
+                'articulos_distribucion': [
+                    (1.0, 25, 50)   # Distribución uniforme: cualquier cantidad entre 25-50 artículos
+                ]
+            },
+            {
+                'tipo': 'Normal',
+                'express': False,
+                'personas_min': 1,
+                'personas_max': 5,
+                'articulos_distribucion': [
+                    (1.0, 25, 50)
+                ]
+            },
+            {
+                'tipo': 'Express',
+                'express': True,
+                'personas_min': 1,
+                'personas_max': 15,  # Uniforme entre 9-16 personas
+                'articulos_distribucion': [
+                    (1.0, 1, 10)   # Distribución uniforme: cualquier cantidad entre 1-10 artículos
+                ]
+            }
+        ],
+        'cliente_objetivo': {
+            'articulos_min': 3,
+            'articulos_max': 8,
+            'tiempo_cobro_min': 15,
+            'tiempo_cobro_max': 30
+        },
+        'tiempo_cobro_min': 15,
+        'tiempo_cobro_max': 30
     }
     # Aquí se pueden agregar más casos de prueba fácilmente
     # 3: { ... },

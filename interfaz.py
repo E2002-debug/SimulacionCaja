@@ -24,7 +24,7 @@ class InterfazSimulador:
         
         # Dimensiones y visualización
         self.canvas_width = 950
-        self.canvas_height = 650
+        self.canvas_height = 500
         self.caja_width = 280
         self.caja_height = 250
         self.persona_radius = 8
