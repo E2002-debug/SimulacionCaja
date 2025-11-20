@@ -28,8 +28,29 @@ caja_express = {
     "tiempo_total": 0
 }
 
-# Cantidad de ensayos para las simulaciones estadísticas
+# ==========================================
+# VARIABLES PARA EL TALLER 4 (OPENBOX)
+# ==========================================
+
+# Costos
+COSTO_CAJA = 0.50         # USD/min por caja activa
+COSTO_ESPERA = 0.20       # USD/min de tiempo en sistema
+COSTO_SLA = 3.00          # USD por cada punto porcentual fuera de SLA
+
+# SLA objetivo (8 minutos = 480 segundos)
+OBJETIVO_SLA_SEG = 480
+
+# Cantidad de réplicas mínimas (Taller 4)
+REPLICAS_OPENBOX = 10
+
+# Valores de s que queremos probar
+VALORES_S = [2, 3, 4, 5]
+
 CANTIDAD_ENSAYOS = 1000
+
+
+
+
 
 # Configuraciones de casos de prueba
 # Cada caso define las variables para simular diferentes escenarios

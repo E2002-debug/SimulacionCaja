@@ -1,0 +1,861 @@
+═══════════════════════════════════════════════════════════════════════════════
+        TALLER: ¿CUÁNDO ABRIR UNA NUEVA CAJA?
+        ANÁLISIS DE SISTEMAS DE COLAS TIPO M/M/s
+═══════════════════════════════════════════════════════════════════════════════
+
+FECHA: Noviembre 18, 2025
+ÁREA: Simulación de Sistemas de Atención al Cliente
+MODELO: Sistema de Colas M/M/s (Markoviano)
+
+═══════════════════════════════════════════════════════════════════════════════
+1. OBJETIVO PRINCIPAL DE LA PRÁCTICA
+═══════════════════════════════════════════════════════════════════════════════
+
+1.1. OBJETIVO GENERAL
+─────────────────────
+
+Determinar, desde la perspectiva del negocio, el número óptimo de cajas 
+(servidores) que deben estar activas en un supermercado para MINIMIZAR el 
+COSTO TOTAL DE OPERACIÓN, equilibrando tres componentes críticos:
+
+   a) Costo operativo de mantener cajas abiertas
+   b) Costo de oportunidad por tiempo de espera de clientes
+   c) Penalización por incumplimiento del nivel de servicio (SLA)
+
+1.2. PERSPECTIVA DEL NEGOCIO
+─────────────────────────────
+
+El problema central es una decisión de OPTIMIZACIÓN ECONÓMICA:
+
+   • DEMASIADAS CAJAS → Alto costo operativo, recursos subutilizados
+   • MUY POCAS CAJAS → Clientes insatisfechos, pérdida de ventas futuras
+
+El balance óptimo se encuentra mediante:
+
+   Costo_Total(s) = c_caja × s + c_espera × W + c_SLA × P(incumplimiento_SLA)
+
+   Donde:
+   - s: número de cajas activas (servidores)
+   - W: tiempo promedio en el sistema (espera + servicio)
+   - P(incumplimiento_SLA): probabilidad de exceder el tiempo objetivo
+
+1.3. EQUILIBRIO DE FACTORES
+─────────────────────────────
+
+┌─────────────────────┬───────────────────────┬─────────────────────────┐
+│  Factor             │  Impacto en Negocio   │  Métrica Clave          │
+├─────────────────────┼───────────────────────┼─────────────────────────┤
+│ Costo por caja      │ Salarios, energía,    │ c_caja × s              │
+│ activa              │ mantenimiento         │ ($/hora por caja)       │
+├─────────────────────┼───────────────────────┼─────────────────────────┤
+│ Costo por espera    │ Insatisfacción,       │ c_espera × λ × W        │
+│ de clientes         │ pérdida de ventas     │ ($/cliente-minuto)      │
+├─────────────────────┼───────────────────────┼─────────────────────────┤
+│ Penalización SLA    │ Incumplimiento de     │ c_SLA × P(W > SLA)      │
+│                     │ estándares, multas    │ ($ por violación)       │
+└─────────────────────┴───────────────────────┴─────────────────────────┘
+
+1.4. DECISIÓN OPERATIVA
+────────────────────────
+
+La práctica busca responder:
+
+   PREGUNTA CLAVE: ¿Cuántas cajas (s) debe tener abiertas el supermercado
+                   en cada franja horaria para minimizar costos totales
+                   mientras mantiene un nivel de servicio aceptable?
+
+Ejemplo de aplicación:
+   - Franja matutina (8-11 AM): λ = 15 clientes/hora → s = 2 cajas
+   - Franja vespertina (6-9 PM): λ = 45 clientes/hora → s = 5 cajas
+
+1.5. RESTRICCIONES Y CONSIDERACIONES
+─────────────────────────────────────
+
+   • Capacidad física: Número máximo de cajas disponibles
+   • Disponibilidad de personal calificado
+   • SLA contractual o estándar de la empresa
+   • Variabilidad en llegadas y servicios
+   • Diferentes perfiles de clientes (express vs normal)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+2. MATERIALES Y REACTIVOS NECESARIOS
+═══════════════════════════════════════════════════════════════════════════════
+
+2.1. DATOS DE TASA DE LLEGADAS POR FRANJA (λ)
+───────────────────────────────────────────────
+
+DEFINICIÓN:
+λ (lambda) representa la tasa promedio de llegada de clientes al sistema,
+medida en clientes por unidad de tiempo (típicamente clientes/hora).
+
+REQUISITOS DE DATOS:
+
+   ┌──────────────────┬─────────────┬──────────────────┬─────────────┐
+   │ Franja Horaria   │ λ (clientes │ Desviación      │ Distribución│
+   │                  │ /hora)      │ Estándar        │ Asumida     │
+   ├──────────────────┼─────────────┼──────────────────┼─────────────┤
+   │ Matutina         │ 15-25       │ ±3-5            │ Poisson     │
+   │ (8:00 - 11:00)   │             │                 │             │
+   ├──────────────────┼─────────────┼──────────────────┼─────────────┤
+   │ Almuerzo         │ 30-40       │ ±5-8            │ Poisson     │
+   │ (11:00 - 14:00)  │             │                 │             │
+   ├──────────────────┼─────────────┼──────────────────┼─────────────┤
+   │ Tarde            │ 20-30       │ ±4-6            │ Poisson     │
+   │ (14:00 - 18:00)  │             │                 │             │
+   ├──────────────────┼─────────────┼──────────────────┼─────────────┤
+   │ Vespertina       │ 40-60       │ ±8-12           │ Poisson     │
+   │ (18:00 - 21:00)  │             │                 │             │
+   └──────────────────┴─────────────┴──────────────────┴─────────────┘
+
+FUENTES DE INFORMACIÓN:
+   • Datos históricos del POS (Point of Sale)
+   • Registros de transacciones por timestamp
+   • Conteo manual por muestreo
+   • Sensores de entrada al establecimiento
+
+PROCESAMIENTO:
+   1. Recopilar timestamps de llegadas durante período representativo
+   2. Agrupar por franjas horarias
+   3. Calcular tasa promedio: λ = N / T (clientes / horas)
+   4. Verificar supuesto de Poisson mediante pruebas estadísticas:
+      - Test Chi-cuadrado de bondad de ajuste
+      - Gráfico de intervalo entre llegadas vs distribución exponencial
+
+EJEMPLO NUMÉRICO:
+   Si en 1 hora (8:00-9:00 AM) llegaron 18 clientes:
+   λ_matutina = 18 clientes/hora
+   
+   Intervalo promedio entre llegadas = 60 min / 18 = 3.33 minutos
+   (Este valor sigue una distribución exponencial con parámetro λ)
+
+
+2.2. TIEMPOS DE SERVICIO
+──────────────────────────
+
+El tiempo de servicio total por cliente se compone de DOS elementos:
+
+   T_servicio = T_escaneo + T_cobro
+
+2.2.1. Tiempo de Escaneo por Artículo (μ_escaneo)
+───────────────────────────────────────────────────
+
+DEFINICIÓN:
+Tiempo que tarda el cajero en escanear UN artículo individual.
+
+PARÁMETROS REQUERIDOS:
+
+   Cajero Experto:
+   • Media (μ): 2.5 - 4.0 segundos/artículo
+   • Distribución: Uniforme(2.5, 4.0) o Normal(3.25, 0.5)
+   • Factor de habilidad: 1.0
+
+   Cajero Principiante:
+   • Media (μ): 4.5 - 7.0 segundos/artículo
+   • Distribución: Uniforme(4.5, 7.0) o Normal(5.75, 0.8)
+   • Factor de habilidad: 0.6 (60% de eficiencia)
+
+FÓRMULA DE TIEMPO DE ESCANEO:
+   T_escaneo = n_artículos × tiempo_por_artículo
+
+   Donde:
+   - n_artículos ~ Distribución según tipo de caja
+   - tiempo_por_artículo ~ Según tipo de cajero
+
+2.2.2. Tiempo de Cobro por Cliente (T_cobro)
+──────────────────────────────────────────────
+
+DEFINICIÓN:
+Tiempo fijo dedicado al procesamiento del pago (efectivo, tarjeta, etc.)
+
+PARÁMETROS:
+   • Media: 15 - 30 segundos
+   • Distribución: Uniforme(15, 30) segundos
+   • Varianza: depende del método de pago
+
+COMPONENTES DEL TIEMPO DE COBRO:
+   - Anuncio del total: 2-5 segundos
+   - Procesamiento del pago: 10-20 segundos
+   - Entrega de cambio/recibo: 3-5 segundos
+
+2.2.3. Tasa de Servicio Global (μ)
+────────────────────────────────────
+
+DEFINICIÓN:
+μ (mu) representa la tasa promedio de servicio, medida en clientes/hora
+por servidor (caja).
+
+CÁLCULO:
+   μ = 1 / E[T_servicio]
+   
+   Donde:
+   E[T_servicio] = E[n_artículos] × E[t_escaneo] + E[T_cobro]
+
+EJEMPLO:
+   Cliente promedio: 15 artículos
+   Cajero experto: 3 segundos/artículo
+   Cobro: 22.5 segundos promedio
+   
+   T_servicio = 15 × 3 + 22.5 = 67.5 segundos = 1.125 minutos
+   μ = 60 min/hora ÷ 1.125 min/cliente = 53.33 clientes/hora
+
+
+2.3. COSTOS DEL SISTEMA
+─────────────────────────
+
+2.3.1. Costo por Caja Activa (c_caja)
+───────────────────────────────────────
+
+DEFINICIÓN:
+Costo operativo por mantener una caja abierta durante una hora.
+
+COMPONENTES:
+   • Salario del cajero (proporcional por hora)
+   • Costos de energía (iluminación, POS, scanner)
+   • Depreciación de equipo
+   • Costos de oportunidad del espacio
+
+RANGO TÍPICO:
+   c_caja = $10,000 - $25,000 COP/hora por caja
+   
+   Ejemplo desglosado:
+   - Salario cajero: $2,500,000/mes ÷ 200 horas = $12,500/hora
+   - Energía y equipos: $3,000/hora
+   - Depreciación: $2,000/hora
+   - Total: $17,500 COP/hora
+
+MODELO DE COSTO:
+   Costo_Cajas(s) = c_caja × s × T
+   
+   Donde:
+   - s: número de cajas activas
+   - T: duración de la operación (horas)
+
+2.3.2. Costo del Tiempo en Sistema (c_espera)
+───────────────────────────────────────────────
+
+DEFINICIÓN:
+Valor monetario asignado al tiempo que un cliente permanece en el sistema
+(esperando en fila + siendo atendido).
+
+JUSTIFICACIÓN ECONÓMICA:
+Este costo representa:
+   • Insatisfacción del cliente
+   • Probabilidad de abandono
+   • Pérdida de ventas futuras (customer lifetime value)
+   • Reputación de marca
+
+RANGO TÍPICO:
+   c_espera = $200 - $1,000 COP/cliente-minuto
+   
+   Criterio: Si un cliente espera 10 minutos adicionales, el negocio
+            pierde $2,000 - $10,000 por la mala experiencia
+
+MODELO DE COSTO:
+   Costo_Espera = c_espera × λ × W × T
+   
+   Donde:
+   - λ: tasa de llegadas (clientes/hora)
+   - W: tiempo promedio en sistema (minutos)
+   - T: duración de la operación (horas)
+
+CÁLCULO DE W (Fórmula de Little):
+   W = L / λ
+   
+   Donde L es el número promedio de clientes en el sistema
+
+Para sistema M/M/s:
+   W = Wq + 1/μ
+   
+   Donde:
+   - Wq: tiempo promedio en cola (espera)
+   - 1/μ: tiempo promedio de servicio
+
+2.3.3. Penalización por Incumplir SLA (c_SLA)
+───────────────────────────────────────────────
+
+DEFINICIÓN:
+Costo asociado a que un cliente exceda el tiempo máximo aceptable en sistema.
+
+ESTRUCTURA DE PENALIZACIÓN:
+
+   Opción 1: Penalización fija por evento
+   ────────────────────────────────────────
+   c_SLA = $5,000 - $15,000 por cada cliente que excede el SLA
+   
+   Costo_SLA = c_SLA × N_incumplimientos
+
+   Opción 2: Penalización proporcional
+   ────────────────────────────────────
+   c_SLA = $1,000 × (W - SLA) si W > SLA, 0 en caso contrario
+   
+   Penaliza más severamente mayores excesos
+
+   Opción 3: Penalización basada en probabilidad
+   ───────────────────────────────────────────────
+   Costo_SLA = c_SLA × λ × P(W > SLA) × T
+   
+   Donde P(W > SLA) se estima por simulación
+
+EJEMPLO:
+   SLA = 5 minutos
+   c_SLA = $10,000 por violación
+   Si en 1 hora: 30 clientes, 6 exceden SLA
+   Costo_SLA = $10,000 × 6 = $60,000
+
+2.3.4. Función de Costo Total
+───────────────────────────────
+
+MODELO INTEGRADO:
+
+   Costo_Total(s, λ, μ, T) = 
+       c_caja × s × T                          [Costo operativo]
+     + c_espera × λ × W(s, λ, μ) × T          [Costo de espera]
+     + c_SLA × λ × P(W > SLA | s, λ, μ) × T   [Penalización SLA]
+
+OBJETIVO DE OPTIMIZACIÓN:
+
+   s* = argmin_s { Costo_Total(s, λ, μ, T) }
+   
+   Sujeto a:
+   - s ≥ 1
+   - s ≤ s_max (número máximo de cajas disponibles)
+   - ρ = λ/(s×μ) < 1 (condición de estabilidad del sistema)
+
+
+2.4. OBJETIVO DE SERVICIO (SLA)
+─────────────────────────────────
+
+2.4.1. Definición del SLA
+──────────────────────────
+
+SLA (Service Level Agreement) = Tiempo máximo aceptable que un cliente
+debe permanecer en el sistema.
+
+EXPRESIÓN MATEMÁTICA:
+   SLA = T_objetivo minutos
+   
+   Cumplimiento: P(W ≤ SLA) ≥ α
+   
+   Donde α es el nivel de servicio objetivo (ej: 90%, 95%)
+
+TIPOS DE SLA:
+
+   Tipo A: SLA sobre tiempo total en sistema (W)
+   ───────────────────────────────────────────────
+   "El 90% de los clientes debe ser atendido en menos de 5 minutos"
+   
+   Métrica: P(W ≤ 5 min) ≥ 0.90
+
+   Tipo B: SLA sobre tiempo de espera en cola (Wq)
+   ─────────────────────────────────────────────────
+   "El 95% de los clientes debe esperar menos de 3 minutos en fila"
+   
+   Métrica: P(Wq ≤ 3 min) ≥ 0.95
+
+   Tipo C: SLA sobre número de personas en cola (Lq)
+   ───────────────────────────────────────────────────
+   "Máximo 5 personas en cola en cualquier momento"
+   
+   Métrica: P(Lq ≤ 5) ≥ 0.90
+
+2.4.2. Aplicación del SLA
+───────────────────────────
+
+VERIFICACIÓN:
+Durante la simulación, para cada cliente i:
+   1. Medir W_i = T_salida_i - T_llegada_i
+   2. Evaluar si W_i ≤ SLA
+   3. Calcular proporción de cumplimiento
+
+ESTIMACIÓN DE P(W > SLA):
+   P(W > SLA) ≈ (Número de clientes con W > SLA) / (Total de clientes)
+
+CÁLCULO ANALÍTICO (M/M/s):
+Para sistemas M/M/s, existe fórmula cerrada (compleja):
+   
+   P(W > t) = P(esperar) × exp(-s×μ×(1-ρ)×t)
+   
+   Donde:
+   - ρ = λ/(s×μ)
+   - P(esperar) = Fórmula de Erlang C
+
+2.4.3. Ejemplo de Aplicación
+──────────────────────────────
+
+ESCENARIO:
+   λ = 30 clientes/hora
+   μ = 12 clientes/hora por caja
+   SLA = 4 minutos
+   Nivel de servicio: 90%
+
+ANÁLISIS CON s=2 CAJAS:
+   ρ = 30/(2×12) = 1.25 > 1 → SISTEMA INESTABLE ❌
+
+ANÁLISIS CON s=3 CAJAS:
+   ρ = 30/(3×12) = 0.833 < 1 → ESTABLE ✓
+   W ≈ 2.5 minutos (calculado por simulación)
+   P(W ≤ 4 min) ≈ 0.94 = 94% → CUMPLE SLA ✓
+
+ANÁLISIS CON s=4 CAJAS:
+   ρ = 30/(4×12) = 0.625
+   W ≈ 1.8 minutos
+   P(W ≤ 4 min) ≈ 0.99 = 99% → SOBRECUMPLE SLA
+   
+   Decisión: s=3 es óptimo (s=4 genera sobrecosto innecesario)
+
+
+2.5. PLANTILLA DE RECOLECCIÓN DE DATOS - MATRIZ DE CORRIDAS
+──────────────────────────────────────────────────────────────
+
+2.5.1. Estructura de la Matriz
+────────────────────────────────
+
+La matriz de corridas (Design of Experiments) permite sistematizar
+la experimentación y garantizar resultados reproducibles.
+
+FORMATO DE TABLA:
+
+┌──────┬─────┬─────┬─────┬─────┬────────┬──────┬──────┬──────┬──────┬──────┐
+│ Run  │  λ  │  μ  │  s  │  R  │ Semilla│  W̄   │ σ_W  │ L̄    │ P_SLA│ Costo│
+│  #   │(cl/h)│(cl/h)│(caj)│(rép)│        │(min) │(min) │(cl)  │  (%) │ ($)  │
+├──────┼─────┼─────┼─────┼─────┼────────┼──────┼──────┼──────┼──────┼──────┤
+│  1   │ 20  │ 15  │  2  │ 30  │ 12345  │ 3.2  │ 1.5  │ 2.1  │ 0.92 │125000│
+│  2   │ 20  │ 15  │  3  │ 30  │ 12345  │ 1.8  │ 0.9  │ 1.2  │ 0.98 │140000│
+│  3   │ 30  │ 15  │  2  │ 30  │ 12345  │ 5.7  │ 2.8  │ 4.5  │ 0.75 │180000│
+│  4   │ 30  │ 15  │  3  │ 30  │ 12345  │ 2.4  │ 1.2  │ 1.8  │ 0.95 │155000│
+│  5   │ 40  │ 15  │  3  │ 30  │ 12345  │ 4.1  │ 2.1  │ 3.2  │ 0.82 │195000│
+│  6   │ 40  │ 15  │  4  │ 30  │ 12345  │ 2.1  │ 1.0  │ 1.6  │ 0.97 │185000│
+└──────┴─────┴─────┴─────┴─────┴────────┴──────┴──────┴──────┴──────┴──────┘
+
+LEYENDA:
+   λ: Tasa de llegadas (clientes/hora)
+   μ: Tasa de servicio por caja (clientes/hora)
+   s: Número de cajas activas
+   R: Número de réplicas (simulaciones independientes)
+   W̄: Tiempo promedio en sistema
+   σ_W: Desviación estándar del tiempo en sistema
+   L̄: Número promedio de clientes en sistema
+   P_SLA: Probabilidad de cumplir SLA
+   Costo: Costo total estimado
+
+2.5.2. Parámetros de Entrada
+──────────────────────────────
+
+PARÁMETROS FIJOS (por escenario):
+   • λ: Tasa de llegadas
+   • μ: Tasa de servicio base
+   • SLA: Tiempo objetivo
+   • c_caja, c_espera, c_SLA: Costos unitarios
+   • T_simulación: Duración de cada corrida (ej: 8 horas)
+   • T_warmup: Período de calentamiento (ej: 1 hora)
+
+PARÁMETROS VARIABLES (factores experimentales):
+   • s: Número de cajas {1, 2, 3, 4, 5, 6}
+   • Tipo de cajero: {Experto, Principiante, Mixto}
+   • Franja horaria: {Matutina, Tarde, Vespertina}
+
+NÚMERO DE CORRIDAS:
+   Total_corridas = (Niveles de λ) × (Niveles de s) × R
+   
+   Ejemplo: 4 franjas × 6 configuraciones de cajas × 30 réplicas = 720 corridas
+
+2.5.3. Métricas de Salida
+───────────────────────────
+
+MÉTRICAS PROMEDIO (por réplica):
+
+   1. W̄ (Tiempo promedio en sistema):
+      W̄ = (Σ W_i) / N_clientes
+      
+   2. W̄q (Tiempo promedio en cola):
+      W̄q = (Σ Wq_i) / N_clientes
+      
+   3. L̄ (Clientes promedio en sistema):
+      L̄ = λ × W̄  [Ley de Little]
+      
+   4. L̄q (Clientes promedio en cola):
+      L̄q = λ × W̄q
+      
+   5. ρ (Utilización del sistema):
+      ρ = λ / (s × μ)
+      
+   6. P(W ≤ SLA) (Probabilidad de cumplir SLA):
+      P(W ≤ SLA) = N_cumple / N_total
+
+MÉTRICAS DE VARIABILIDAD:
+
+   1. σ_W (Desviación estándar de W):
+      σ_W = sqrt[ Σ(W_i - W̄)² / (N-1) ]
+      
+   2. CV_W (Coeficiente de variación):
+      CV_W = σ_W / W̄
+      
+   3. Percentiles:
+      - P50 (mediana)
+      - P90 (percentil 90)
+      - P95 (percentil 95)
+      - P99 (percentil 99)
+
+MÉTRICAS ECONÓMICAS:
+
+   1. Costo_Cajas = c_caja × s × T
+   
+   2. Costo_Espera = c_espera × Σ W_i
+   
+   3. Costo_SLA = c_SLA × N_incumplimientos
+   
+   4. Costo_Total = Costo_Cajas + Costo_Espera + Costo_SLA
+
+2.5.4. Agregación de Réplicas
+───────────────────────────────
+
+Para cada configuración (λ, s), ejecutar R réplicas independientes:
+
+PROMEDIO ENTRE RÉPLICAS:
+   W̄_final = (Σ W̄_r) / R    donde r = 1, 2, ..., R
+
+INTERVALO DE CONFIANZA (95%):
+   IC_95 = W̄_final ± t_(α/2, R-1) × (s_W / sqrt(R))
+   
+   Donde:
+   - t_(α/2, R-1): valor crítico de t-Student
+   - s_W: desviación estándar entre las R medias de réplicas
+
+CRITERIO DE SUFICIENCIA:
+   Ancho_IC / W̄_final < 0.05 (error relativo < 5%)
+   
+   Si no se cumple, incrementar R
+
+
+2.6. SEMILLAS DE ALEATORIEDAD
+───────────────────────────────
+
+2.6.1. Importancia de las Semillas
+────────────────────────────────────
+
+Las semillas (seeds) controlan la generación de números pseudoaleatorios,
+permitiendo:
+
+   ✓ REPRODUCIBILIDAD: Mismos resultados con misma semilla
+   ✓ COMPARABILIDAD: Mismas condiciones aleatorias entre configuraciones
+   ✓ VALIDACIÓN: Verificación de resultados
+   ✓ DEBUGGING: Identificación de comportamientos anómalos
+
+2.6.2. Estrategias de Asignación
+──────────────────────────────────
+
+ESTRATEGIA 1: Semilla única por réplica
+────────────────────────────────────────
+   seed_r = seed_base + r
+   
+   Ejemplo:
+   - Réplica 1: seed = 12345
+   - Réplica 2: seed = 12346
+   - Réplica 3: seed = 12347
+
+ESTRATEGIA 2: Semillas comunes entre configuraciones (CRN)
+───────────────────────────────────────────────────────────
+Common Random Numbers: Usar mismas secuencias aleatorias para
+reducir varianza en comparaciones.
+
+   Para configuración A con s=2:
+   - Réplica 1: seed = 12345
+   - Réplica 2: seed = 12346
+   
+   Para configuración B con s=3:
+   - Réplica 1: seed = 12345 (misma que A)
+   - Réplica 2: seed = 12346 (misma que A)
+
+   Ventaja: Reduce varianza en estimaciones de diferencias
+
+ESTRATEGIA 3: Streams independientes
+─────────────────────────────────────
+   Separar generadores para:
+   - Llegadas de clientes (stream 1)
+   - Tiempos de servicio (stream 2)
+   - Tipo de cajero (stream 3)
+
+2.6.3. Implementación en Python
+─────────────────────────────────
+
+import random
+import numpy as np
+
+# Configurar semilla global
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+
+# Ejemplo de uso en simulación
+def simular_replica(lambda_val, mu_val, s, seed, T):
+    set_seed(seed)
+    
+    # Generar llegadas con Poisson
+    llegadas = generar_llegadas_poisson(lambda_val, T)
+    
+    # Generar tiempos de servicio
+    servicios = generar_servicios_exp(mu_val, len(llegadas))
+    
+    # Ejecutar simulación
+    resultados = ejecutar_colas_mmS(llegadas, servicios, s)
+    
+    return resultados
+
+# Ejecutar múltiples réplicas
+SEED_BASE = 42
+R = 30
+
+for r in range(R):
+    seed_r = SEED_BASE + r
+    resultado = simular_replica(lambda_val=30, mu_val=15, 
+                                s=3, seed=seed_r, T=480)
+    almacenar_resultado(r, resultado)
+
+2.6.4. Verificación de Independencia
+──────────────────────────────────────
+
+PRUEBA: Ejecutar 10 réplicas con semillas diferentes
+
+Resultado esperado:
+   - Medias similares pero no idénticas
+   - Varianza consistente con teoría estadística
+   - Sin patrones cíclicos o correlación serial
+
+EJEMPLO:
+   Réplicas con seed 100, 101, ..., 109
+   W̄: [3.2, 3.5, 2.9, 3.3, 3.1, 3.4, 3.0, 3.2, 3.3, 3.1]
+   Promedio: 3.20 ± 0.19 minutos ✓
+
+
+2.7. GUÍA DE SUPUESTOS Y DISTRIBUCIONES
+─────────────────────────────────────────
+
+2.7.1. Proceso de Llegadas
+────────────────────────────
+
+SUPUESTO: Llegadas siguen un Proceso de Poisson
+
+DISTRIBUCIÓN:
+   N(t) ~ Poisson(λt)
+   
+   Donde N(t) es el número de llegadas en el intervalo [0, t]
+
+IMPLICACIONES:
+   ✓ Llegadas independientes
+   ✓ Tasa de llegadas constante λ
+   ✓ Tiempos entre llegadas ~ Exponencial(λ)
+
+JUSTIFICACIÓN:
+   • Comportamiento típico en comercio minorista
+   • CLT: Suma de muchos eventos raros
+   • Validado empíricamente en múltiples estudios
+
+VALIDACIÓN:
+   1. Histograma de tiempos entre llegadas vs Exponencial(λ)
+   2. Test de Kolmogorov-Smirnov
+   3. Test de bondad de ajuste Chi-cuadrado
+
+CÓDIGO DE GENERACIÓN:
+   import numpy as np
+   
+   def generar_llegadas_poisson(lambda_rate, T_max):
+       """
+       Genera tiempos de llegada según proceso Poisson
+       """
+       llegadas = []
+       t = 0
+       while t < T_max:
+           # Tiempo entre llegadas ~ Exp(λ)
+           delta_t = np.random.exponential(1 / lambda_rate)
+           t += delta_t
+           if t < T_max:
+               llegadas.append(t)
+       return np.array(llegadas)
+
+IMPACTO EN EL MODELO:
+   ↑ Si λ aumenta → Más llegadas → Mayor congestión
+   → Necesidad de más servidores (↑ s)
+
+2.7.2. Tiempos de Servicio
+────────────────────────────
+
+SUPUESTO: Tiempos de servicio siguen Distribución Exponencial
+
+DISTRIBUCIÓN:
+   T_servicio ~ Exponencial(μ)
+   
+   P(T ≤ t) = 1 - exp(-μt)
+   E[T] = 1/μ
+   Var[T] = 1/μ²
+
+JUSTIFICACIÓN:
+   • Propiedad sin memoria (memoryless)
+   • Simplicidad matemática (modelo M/M/s)
+   • Aproximación razonable en sistemas con alta variabilidad
+
+LIMITACIÓN:
+   ⚠ En realidad, el servicio tiene componentes:
+      - Fijo: escaneo de artículos
+      - Aleatorio: método de pago, interacciones
+   
+   → Mejor modelar como FASE-TYPE o GENERAL (G)
+
+ALTERNATIVAS MÁS REALISTAS:
+
+   Opción A: Distribución Uniforme
+   ─────────────────────────────────
+   T_escaneo ~ Uniforme(a, b)
+   
+   Ventaja: Refleja rango conocido
+   Desventaja: No captura variabilidad interna
+
+   Opción B: Distribución Normal Truncada
+   ────────────────────────────────────────
+   T_escaneo ~ Normal(μ, σ²) truncada en [a, b]
+   
+   Ventaja: Concentración cerca de la media
+   Desventaja: Complejidad computacional
+
+   Opción C: Distribución Erlang (k fases)
+   ────────────────────────────────────────
+   T_servicio ~ Erlang(k, μ)
+   
+   Ventaja: Menor variabilidad que Exponencial (CV = 1/√k)
+   Uso: Cuando servicio tiene k etapas secuenciales
+
+CÓDIGO DE GENERACIÓN:
+   def generar_servicio_realista(n_articulos, tipo_cajero):
+       """
+       Genera tiempo de servicio compuesto
+       """
+       # Componente 1: Escaneo de artículos
+       if tipo_cajero == "Experto":
+           t_por_articulo = np.random.uniform(2.5, 4.0)
+       else:  # Principiante
+           t_por_articulo = np.random.uniform(4.5, 7.0)
+       
+       t_escaneo = n_articulos * t_por_articulo
+       
+       # Componente 2: Tiempo de cobro
+       t_cobro = np.random.uniform(15, 30)
+       
+       # Total
+       t_total = t_escaneo + t_cobro
+       return t_total
+
+CONVERSIÓN A TASA μ:
+   Si E[T_servicio] = 67.5 segundos
+   μ = 1 / (67.5/60) = 53.33 clientes/hora
+
+IMPACTO EN EL MODELO:
+   ↑ Si μ aumenta → Servicio más rápido → Menor congestión
+   → Necesidad de menos servidores (↓ s)
+
+2.7.3. Disciplina de Cola
+───────────────────────────
+
+SUPUESTO: FIFO (First In, First Out)
+
+ALTERNATIVAS:
+   • LIFO (Last In, First Out): Poco común en retail
+   • SIRO (Service In Random Order): No aplicable
+   • Prioridades: Clientes VIP, adultos mayores
+
+IMPLEMENTACIÓN:
+   cola = queue.Queue()  # FIFO en Python
+
+2.7.4. Capacidad del Sistema
+──────────────────────────────
+
+SUPUESTO: Cola infinita (en teoría M/M/s)
+
+REALIDAD: Capacidad limitada → Modelo M/M/s/K
+   K = Número máximo de clientes en sistema (espera + servicio)
+
+IMPLICACIÓN:
+   Si sistema lleno → Clientes ABANDONAN (balking)
+   → Pérdida de ventas
+
+MODELO EXTENDIDO:
+   Tasa efectiva de llegadas:
+   λ_efectiva = λ × P(sistema no lleno)
+
+2.7.5. Número de Servidores
+─────────────────────────────
+
+VARIABLE DE DECISIÓN: s ∈ {1, 2, 3, 4, 5, 6, ...}
+
+RESTRICCIONES:
+   • s_min = ⌈λ/μ⌉ (mínimo para estabilidad: ρ < 1)
+   • s_max = Número de cajas físicas disponibles
+
+ANÁLISIS DE SENSIBILIDAD:
+   Evaluar Costo_Total(s) para s = s_min, s_min+1, ..., s_max
+   Identificar s* que minimiza costo
+
+2.7.6. Período de Warmup
+─────────────────────────
+
+PROBLEMA: Estado inicial transitorio afecta métricas
+
+SOLUCIÓN: Descartar primeras observaciones (warmup period)
+
+REGLA EMPÍRICA:
+   T_warmup = 10 / λ (tiempo para ~10 llegadas)
+   
+   O: T_warmup = 1 hora en simulación de 8 horas
+
+IMPLEMENTACIÓN:
+   # Iniciar simulación en t=0
+   # Recolectar datos solo después de t=T_warmup
+
+2.7.7. Resumen de Distribuciones Candidatas
+─────────────────────────────────────────────
+
+┌─────────────────────┬──────────────────┬──────────────────┬─────────────┐
+│ Variable            │ Distribución     │ Parámetros       │ Justificación│
+│                     │ Candidata        │                  │             │
+├─────────────────────┼──────────────────┼──────────────────┼─────────────┤
+│ Llegadas            │ Poisson          │ λ (tasa)         │ Proceso     │
+│ (N(t))              │                  │                  │ estocástico │
+│                     │                  │                  │ estándar    │
+├─────────────────────┼──────────────────┼──────────────────┼─────────────┤
+│ Tiempo entre        │ Exponencial      │ λ (tasa)         │ Equivalente │
+│ llegadas            │                  │                  │ a Poisson   │
+├─────────────────────┼──────────────────┼──────────────────┼─────────────┤
+│ Tiempo de servicio  │ Exponencial      │ μ (tasa)         │ M/M/s       │
+│ (básico)            │                  │                  │ clásico     │
+├─────────────────────┼──────────────────┼──────────────────┼─────────────┤
+│ Tiempo de escaneo   │ Uniforme         │ (a, b)           │ Rango       │
+│ por artículo        │                  │                  │ conocido    │
+├─────────────────────┼──────────────────┼──────────────────┼─────────────┤
+│ Tiempo de cobro     │ Uniforme         │ (15, 30) seg     │ Observación │
+│                     │                  │                  │ empírica    │
+├─────────────────────┼──────────────────┼──────────────────┼─────────────┤
+│ Número de artículos │ Discreta         │ Por tipo caja    │ Restricción │
+│ por cliente         │ personalizada    │ (Normal/Express) │ de negocio  │
+└─────────────────────┴──────────────────┴──────────────────┴─────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+3. IMPLEMENTACIÓN: INICIO DE CODIFICACIÓN CON DOCUMENTACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+A continuación se presentan las bases para comenzar la implementación
+del simulador con documentación técnica completa.
+
+[ESTA SECCIÓN SERÁ DESARROLLADA EN ARCHIVOS PYTHON SEPARADOS]
+
+Estructura propuesta:
+   1. parametros.py: Definición de todos los parámetros del sistema
+   2. generadores.py: Funciones para generar variables aleatorias
+   3. simulador_colas.py: Motor de simulación M/M/s
+   4. analizador.py: Cálculo de métricas y costos
+   5. optimizador.py: Búsqueda del s* óptimo
+   6. visualizador.py: Gráficos y reportes
+   7. main_experimentos.py: Orquestador de experimentos
+
+═══════════════════════════════════════════════════════════════════════════════
+FIN DEL DOCUMENTO - ANÁLISIS DE COLAS M/M/s
+═══════════════════════════════════════════════════════════════════════════════
